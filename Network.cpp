@@ -9,33 +9,348 @@
 
 // This file contains the network functions.
 
+#include <iostream>
+#include <string>
+#include <cstdio>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netdb.h>
-#include <arpa/inet.h>
 #include <netinet/in.h>
-#include <unistd.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+
+#include "RatingServer.h"
+#include "Network.h"
 
 using namespace std;
 
-void setupConnection(char * listeningPortNr)
-{
-	int status;
-	
-	struct addrinfo hints;
-	struct addrinfo *servinfo;	// will point to the results
-	
-	int sockFd;
-	
-	int socketReuse = 1;
-	
-	struct sockaddr_storage their_addr;
-	socklen_t addr_size;
+CCircularBuffer * socketBuffer;
 
-	int newFd;
+CCircularBuffer::CCircularBuffer()	// Trivial constructor
+{
+	renew();
+}
+
+void CCircularBuffer::renew()
+{
+	dataStart = 0; nextInsert = 0; restOfSequenceLengthDetermined = false; commandTypeDetermined = false;
+}
+
+int CCircularBuffer::dataLoad()
+{
+	return ((nextInsert - dataStart) % 2000);
+}
+
+void print_dec_byte_content(char * pointer, int length)
+{
+	int i;
 	
-	int messageFd;
+	for (i = 0; i < length; i++)
+	{
+		printf("\nDecimal (unsigned int) content of pointer[%d] is %d\n", i, (unsigned int) pointer[i]);
+	}
+}
+
+// get sockaddr, IPv4 or IPv6:
+void *get_in_addr(struct sockaddr *sa)
+{
+	if (sa->sa_family == AF_INET) {
+		return &(((struct sockaddr_in*)sa)->sin_addr);
+	}
+
+	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+void setupConnectionsAndManageCommunications(char * listeningPortNr, char * maxConnections)
+{
+	socketBuffer = new CCircularBuffer[atoi(maxConnections) + 4];
+	
+	fd_set master;    // master file descriptor list
+	fd_set read_fds;  // temp file descriptor list for select()
+	int fdmax;        // maximum file descriptor number
+	
+	int listener;     // listening socket descriptor
+	int newfd;        // newly accept()ed socket descriptor
+	struct sockaddr_storage remoteaddr; // client address
+	socklen_t addrlen;
+	
+	char buf[1000];    // buffer for client data
+	int nbytes;
+	
+	char remoteIP[INET6_ADDRSTRLEN];
+	
+	int yes=1;        // for setsockopt() SO_REUSEADDR, below
+	int i, k, j, rv;
+	
+	char tempString[4];
+	
+	CCircularBuffer * cicularBuffer;
+	
+	struct addrinfo hints, *ai, *p;
+	
+	FD_ZERO(&master);    // clear the master and temp sets
+	FD_ZERO(&read_fds);
+	
+	// get us a socket and bind it
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+	if ((rv = getaddrinfo(NULL, listeningPortNr, &hints, &ai)) != 0)
+	{
+		fprintf(stderr, "selectserver: %s\n", gai_strerror(rv));
+		exit(1);
+	}
+	
+	for(p = ai; p != NULL; p = p->ai_next)
+	{
+		listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+		if (listener < 0)
+		{
+			continue;
+		}
+		
+		// lose the pesky "address already in use" error message
+		setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+		
+		if (bind(listener, p->ai_addr, p->ai_addrlen) < 0)
+		{
+			close(listener);
+			continue;
+		}
+		
+		break;
+	}
+	
+	// if we got here, it means we didn't get bound
+	if (p == NULL)
+	{
+		fprintf(stderr, "selectserver: failed to bind\n");
+		exit(2);
+	}
+	
+	freeaddrinfo(ai); // all done with this
+	
+	// listen
+	if (listen(listener, 1000) == -1)
+	{
+		perror("listen");
+		exit(3);
+	}
+	
+	// add the listener to the master set
+	FD_SET(listener, &master);
+	
+	// keep track of the biggest file descriptor
+	fdmax = listener; // so far, it's this one
+	
+	// main loop
+	for(;;)
+	{
+		read_fds = master; // copy it
+		if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1)
+		{
+			perror("select");
+			exit(4);
+		}
+		
+		// run through the existing connections looking for data to read
+		for(i = 0; i <= fdmax; i++)
+		{
+			if (FD_ISSET(i, &read_fds))
+			{ // we got one!!
+				if (i == listener)
+				{
+					// handle new connections
+					addrlen = sizeof remoteaddr;
+					newfd = accept(listener, (struct sockaddr *) &remoteaddr, &addrlen);
+					
+					if (newfd == -1)
+					{
+						perror("accept");
+					}
+					else
+					{
+						FD_SET(newfd, &master); // add to master set
+						if (newfd > fdmax)
+						{    // keep track of the max
+							fdmax = newfd;
+						}
+						printf("selectserver: new connection from %s on socket %d\n", inet_ntop(remoteaddr.ss_family,
+							get_in_addr((struct sockaddr*)&remoteaddr), remoteIP, INET6_ADDRSTRLEN), newfd);
+						
+						socketBuffer[newfd].renew();	// Prepare the circular buffer!
+					}
+				}
+				else
+				{
+					// handle data from a client
+					if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0)
+					{
+						// got error or connection closed by client
+						if (nbytes == 0)
+						{
+							// connection closed
+							printf("selectserver: socket %d hung up\n", i);
+						}
+						else
+						{
+							perror("recv");
+						}
+						close(i); // bye!
+						FD_CLR(i, &master); // remove from master set
+					}
+					else
+					{
+						// we got some data from a client
+						
+						cicularBuffer = &socketBuffer[i];
+cout << endl << "1) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
+						
+						for (j = 0, k = cicularBuffer->nextInsert; j < nbytes; j++, k++)	// Copy into circular buffer!
+						{
+							cicularBuffer->content[k % 2000] = buf[j];
+						}
+						cicularBuffer->nextInsert = k % 2000;
+						
+print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
+cout << endl << "cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
+cout << endl << "cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;
+						for (;;)
+						{
+							if (!cicularBuffer->restOfSequenceLengthDetermined)
+							{
+								if (cicularBuffer->dataLoad() >= 3)			// If enough data received,
+								{							// get command rest length!
+									tempString[0] = cicularBuffer->content[cicularBuffer->dataStart];
+									tempString[1] = cicularBuffer->content[(cicularBuffer->dataStart + 1) % 2000];
+									tempString[2] = cicularBuffer->content[(cicularBuffer->dataStart + 2) % 2000];
+									
+									cicularBuffer->dataStart = (cicularBuffer->dataStart + 3) % 2000;
+									
+									tempString[3] = '\0';
+									
+									cicularBuffer->restOfSequenceLength = atoi(tempString);
+									
+									cicularBuffer->restOfSequenceLengthDetermined = true;
+								}
+								else
+								{
+									break;
+								}
+							}
+print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
+cout << endl << "2) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
+cout << endl << "2) cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;
+cout << endl << "2) cicularBuffer->restOfSequenceLength = " << cicularBuffer->restOfSequenceLength << endl << endl;
+							
+							if (!cicularBuffer->commandTypeDetermined)
+							{
+								if (cicularBuffer->dataLoad() >= 2)			// If enough data received,
+								{							// get command type!
+									tempString[0] = cicularBuffer->content[cicularBuffer->dataStart];
+									tempString[1] = cicularBuffer->content[(cicularBuffer->dataStart + 1) % 2000];
+									
+									cicularBuffer->dataStart = (cicularBuffer->dataStart + 2) % 2000;
+									
+									tempString[2] = '\0';
+									
+									cicularBuffer->commandType = atoi(tempString);
+									
+									cicularBuffer->commandTypeDetermined = true;
+								}
+								else
+								{
+									break;
+								}
+							}
+print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
+cout << endl << "3) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
+cout << endl << "3) cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;
+cout << endl << "3) cicularBuffer->restOfSequenceLength = " << cicularBuffer->restOfSequenceLength << endl << endl;
+cout << endl << "3) cicularBuffer->commandType = " << cicularBuffer->commandType << endl << endl;
+cout << endl << "3) cicularBuffer->dataLoad() = " << cicularBuffer->dataLoad() << endl << endl;
+cin >> k;
+							if (cicularBuffer->dataLoad() >= cicularBuffer->restOfSequenceLength - 2)
+							{
+							// If enough data received, get and handle command!
+								handleIncomingData(i);
+cout << "handled incoming data";
+break;
+cin >> k;
+							}
+							else
+							{
+								break;
+							}
+						}
+					}
+				} // END handle data from client
+			} // END got new incoming connection
+		} // END looping through file descriptors
+	} // END for(;;)
+}
+
+void handleIncomingData(int socket)
+{
+	CCircularBuffer * circularBuffer = &socketBuffer[socket];
+	
+	int start = circularBuffer->dataStart;				// Data start
+	int rest = circularBuffer->restOfSequenceLength - 2;		// Length of the rest of the sequence after the command-id
+	int cid = circularBuffer->commandType;				// Command-id
+	
+	switch (cid)
+	{
+		case 0:
+			break;
+		case 10:
+			break;
+		case 14:
+			break;
+		case 20:
+			break;
+		case 22:
+			break;
+		case 25:
+			break;
+		case 26:
+			break;
+		case 28:
+			break;
+		case 50:
+			break;
+		case 52:
+			break;
+		case 54:
+			break;
+		case 60:
+			break;
+		case 61:
+			break;
+		case 62:
+			break;
+		case 63:
+			break;
+		case 64:
+			break;
+		case 66:
+			break;
+		case 70:
+			break;
+		case 71:
+			break;
+		case 72:
+			break;
+		case 74:
+			break;
+		case 85:
+			break;
+		default:
+			cout << "This command is not yet implemented." << endl << endl;
+			break;
+	}
 }

@@ -7,7 +7,53 @@
  * see COPYING.
  */
 
+#ifndef GAMES_H
+#define GAMES_H
+
+#include <stdio.h>
+#include <string>
+
+#include "RatingServer.h"
+
 using namespace std;
 
-class CGameListElement;
-class CPlayerListElement;
+class CPlayerListElement
+{
+public:
+	int playerNr;
+	
+	char * gameKey[4];
+	char * playerKey[4];
+	
+	CAccount * account;
+	string chosenNickname;
+	
+	float efficiency;
+	
+	CPlayerListElement * nextPlayer;
+};
+
+class CGameListElement
+{
+public:
+	int gameServerSocketFD;
+	char * gameKey[4];
+	
+	CPlayerListElement * playerOfTeam1;
+	CPlayerListElement * playerOfTeam2;
+	
+	CGameListElement * nextElement;
+};
+
+class CResultListElement : public CGameListElement
+{
+public:
+	int frequency;
+	
+	char winnerTeam;		// 1,2 or 0 (for a draw)
+	
+	bool isEqualTo(CResultListElement paramCResultListElement);
+	bool isSimilarTo(CResultListElement paramCResultListElement);
+};
+
+#endif

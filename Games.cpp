@@ -17,20 +17,9 @@
 
 using namespace std;
 
-class CGameListElement
-{
-	int gameServerSocketFD;
-	char * gameKey[4];
-	
-	CPlayerListElement * player;
-	
-	CGameListElement * nextGame;
-};
+CGameListElement gameListRoot;
 
-class CPlayerListElement
-{
-	char * gameKey[4];
-	char * playerKey[4];
-	
-	CPlayerListElement * nextPlayer;
-};
+CGameListElement * gameListStart = &gameListRoot;
+CGameListElement * gameListEnd = &gameListRoot;
+
+CResultListElement * resultListStart;

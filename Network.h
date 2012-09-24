@@ -7,6 +7,32 @@
  * see COPYING.
  */
 
+#ifndef NETWORK_H
+#define NETWORK_H
+
+#include "RatingServer.h"
+
 using namespace std;
 
-void setupConnection(char * listeningPortNr);
+class CCircularBuffer
+{
+public:
+	char content[2000];
+	int dataStart;
+	int nextInsert;
+	bool restOfSequenceLengthDetermined;
+	int restOfSequenceLength;
+	bool commandTypeDetermined;
+	int commandType;
+	
+	CCircularBuffer();
+	
+	void renew();
+	int dataLoad();
+};
+
+void *get_in_addr(struct sockaddr *sa);
+void setupConnectionsAndManageCommunications(char * listeningPortNr, char * maxConnections);
+void handleIncomingData(int socket);
+
+#endif

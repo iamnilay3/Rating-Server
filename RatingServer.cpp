@@ -43,140 +43,139 @@ int main(int argc, char * argv[])
 {
 	cout << endl << "Tirili's Rating Server" << endl << endl;
 	
+	if (argc != 5)
+	{
+		cout << endl << "Usage: RatingServer FileToLoadFrom FileToSaveTo ListeningPortNr MaxConnections" << endl << endl;
+		return 1;
+	}
+		
 	setupAccountList();
 	setupRatingList();
 	
-	loadFromFile(argv[1]);	// Load data from file AccountData.trs
+	// loadFromFile(argv[1]);	// Load data from file AccountData.trs
 	
 /*	
-	addAccount(1, "Nocturne", "Tirili", "BitchBot", "Some cool dude! Visit http://content.open-ra.org !", false);
-	addAccount(2, "Boris", "", "", "yo I'm da Boris!", false);
-	addAccount(4, "JoSI", "mayhem", "", "deluxe", false);
+	// Account managing tests:
+	
+	addAccount(1, "Lux", "Eagle", "Lion", "Some cool dude! Visit http://content.open-ra.org !", "fghr", false);
+	addAccount(2, "Boris", "", "", "yo I'm da Boris!", "kizhr4", false);
+	CAccount * account = addAccount(4, "JoSI", "mayhem", "", "deluxe", "j2hz53rfgsw", false);
 	
 	printRatingList();
 	
 	updateRating(2, 1293.47);
 	updateRating(1, 874.232);
-
-	addAccount(5, "Pirc", "", "jatso", "_#*#_", false);
-*/	
+	
+	account->setNrOfEvaluatedTtrsGames(21);
+	
+	addAccount(5, "Pirc", "", "jatso", "_#*#_", "w345trgfhuxd", false);
+	
 	printRatingList();
 	printAccountList();
+*/
+	
+	setupConnectionsAndManageCommunications(argv[3], argv[4]);
 	
 	saveToFile(argv[2]);
 	
 	return 0;
 }
 
-class CAccount
+CAccount::CAccount(int paramId, string paramFirstName, string paramSecondName, string paramThirdName,	// Trivial constructor
+			string paramDescription, string paramPassword)
 {
-private:
-	int id;							// Primary key in AccountData.trs file
+	id = paramId;
 	
-	string firstName, secondName, thirdName;		// The first name is supposed to be shown in rating lists; the rest is aliases
+	numberOfRegisteredAccounts++;
 	
-	float ttrsv;						// Tirili's Team Rating System Value
-	
-	string description;					// E-mail address, website, player info and other voluntary stuff goes here
-	
-public:
-	CAccount(int paramId, string paramFirstName, string paramSecondName, string paramThirdName, string paramDescription)	// Trivial constructor
+	if (paramId > idOfLastRegisteredAccount)
 	{
-		id = paramId;
-		
-		numberOfRegisteredAccounts++;
-		
-		if (paramId > idOfLastRegisteredAccount)
-		{
-			idOfLastRegisteredAccount = paramId;
-		}
-		
-		firstName = paramFirstName; secondName = paramSecondName; thirdName = paramThirdName;
-		
-		description = paramDescription;
-		
-		ttrsv = 1000;					// Let 1000 be the future average rating value of all players
+		idOfLastRegisteredAccount = paramId;
 	}
 	
-	~CAccount()
-	{
-		numberOfRegisteredAccounts--;
-	}
+	firstName = paramFirstName; secondName = paramSecondName; thirdName = paramThirdName;
 	
-	int getId()
-	{
-		return id;
-	}
+	description = paramDescription;
 	
-	string getFirstName()
-	{
-		return firstName;
-	}
+	password = paramPassword;
 	
-	string getSecondName()
-	{
-		return secondName;
-	}
+	ttrsv = 1000;					// Let 1000 be the future average rating value of all players
 	
-	string getThirdName()
-	{
-		return thirdName;
-	}
-	
-	float getTtrsv()
-	{
-		return ttrsv;
-	}
-	
-	string getDescription()
-	{
-		return description;
-	}
-	
-	void printDetails()					// Show account details
-	{
-		cout << "ID: " << id << endl;
-		cout << "First Name: " << firstName << "    Second Name: " << secondName << "    Third Name: " << thirdName << endl;
-		cout << "TTRSv: " << ttrsv << endl;
-		cout << "Description: " << description << endl << endl;
-	}
-	
-	friend void updateRating(int paramId, float paramTtrsv, bool verbose);
-};
+	nrOfEvaluatedTtrsGames = 0;
+}
 
-class CAccountListElement	// Elements of the account list (will be sorted by account-id)
+CAccount::~CAccount()
 {
-public:
-	int id;
-	
-	CAccount * account;
-	
-	CAccountListElement * prevElement;
-	CAccountListElement * nextElement;
-	
-	CAccountListElement() { id = 0; account = 0; prevElement = 0; nextElement = 0; }	// Trivial constructor
-};
+	numberOfRegisteredAccounts--;
+}
 
-class CRatingListElement	// Elements of the sorted linked list of (playername,rating-value)-pairs (will be sorted by primary rating value)
+int CAccount::getId()
 {
-public:
-	int rank;
-	
-	float ttrsv;
-	
-	CAccount * account;
-	
-	CRatingListElement * prevElement;
-	CRatingListElement * nextElement;
-	
-	CRatingListElement() { rank = 0; ttrsv = -1000000; account = 0; prevElement = 0; nextElement  = 0;}	// Trivial constructor
-};
+	return id;
+}
+
+string CAccount::getFirstName()
+{
+	return firstName;
+}
+
+string CAccount::getSecondName()
+{
+	return secondName;
+}
+
+string CAccount::getThirdName()
+{
+	return thirdName;
+}
+
+float CAccount::getTtrsv()
+{
+	return ttrsv;
+}
+
+int CAccount::getNrOfEvaluatedTtrsGames()
+{
+	return nrOfEvaluatedTtrsGames;
+}
+
+void CAccount::setNrOfEvaluatedTtrsGames(int paramNrOfEvaluatedTtrsGames)
+{
+	nrOfEvaluatedTtrsGames = paramNrOfEvaluatedTtrsGames;
+}
+
+string CAccount::getDescription()
+{
+	return description;
+}
+
+void CAccount::incrementNrOfEvaluatedTtrsGames()
+{
+	nrOfEvaluatedTtrsGames++;
+}
+
+bool CAccount::passwordMatches(string paramPassword)
+{
+	return (password.compare(paramPassword) == 0);
+}
+
+void CAccount::printDetails()					// Show account details
+{
+	cout << "ID: " << id << endl;
+	cout << "First Name: " << firstName << "    Second Name: " << secondName << "    Third Name: " << thirdName << endl;
+	cout << "TTRSv: " << ttrsv << endl;
+	cout << "Number of evaluated TTRS games: " << nrOfEvaluatedTtrsGames << endl;
+	cout << "Description: " << description << endl << endl;
+}
+
+CAccountListElement::CAccountListElement() { id = 0; account = 0; prevElement = 0; nextElement = 0; }			// Trivial constructor
+
+CRatingListElement::CRatingListElement() { rank = 0; ttrsv = -1000000; account = 0; prevElement = 0; nextElement  = 0;}	// Trivial constructor
 
 void setupAccountList()		// Create a first empty account-list
 {
 	accountListStart = new CAccountListElement;
 	accountListEnd   = new CAccountListElement;
-	
 	
 	accountListStart->id = -2;
 	accountListStart->nextElement = accountListEnd;
@@ -189,7 +188,6 @@ void setupRatingList()		// Create a first empty rating-list
 {
 	ratingListStart = new CRatingListElement;
 	ratingListEnd   = new CRatingListElement;
-	
 	
 	ratingListStart->rank = -2;
 	ratingListStart->nextElement = ratingListEnd;
@@ -266,16 +264,18 @@ CRatingListElement * extractRatingListElement(int paramId)
 	return element;
 }
 
-CAccount * addAccount(int paramId, string paramFirstName, string paramSecondName, string paramThirdName, string paramDescription, bool verbose)
+CAccount * addAccount(int paramId, string paramFirstName, string paramSecondName, string paramThirdName,
+		      string paramDescription, string paramPassword, bool verbose)
 {
 	if ((getIdFromName(paramFirstName) > 0) || (getIdFromName(paramSecondName) > 0) || (getIdFromName(paramThirdName) > 0))
 	{
 		cout << "An account with one of the specified names already exists. Creation canceled!" << endl;
 		
 		return 0;
-	}	
+	}
 	
-	CAccount * account = new CAccount(paramId, paramFirstName, paramSecondName, paramThirdName, paramDescription);
+	CAccount * account = new CAccount(paramId, paramFirstName, paramSecondName, paramThirdName, paramDescription, paramPassword);
+	
 	
 	CAccountListElement * accountListElement = new CAccountListElement;
 	
@@ -291,6 +291,7 @@ CAccount * addAccount(int paramId, string paramFirstName, string paramSecondName
 	ratingListElement->account = account;
 	
 	insertIntoRatingList(ratingListElement);
+	
 	
 	if (verbose)
 	{
@@ -316,9 +317,11 @@ void removeAccount(int paramId)
 
 int getIdFromName(string paramName)
 {
+	if (paramName == "") return -1;
+	
 	CAccountListElement * element = accountListStart;
 	
-	while((element->id == -2) || ((element->account->getFirstName() != paramName)
+	while((element->id == -2) || ((element->id != -1) && (element->account->getFirstName() != paramName)
 					&& (element->account->getSecondName() != paramName)
 					&& (element->account->getThirdName() != paramName)))
 	{
@@ -386,8 +389,10 @@ void printRatingList()
 int loadFromFile(const char * paramPathToFileToLoadFrom)
 {
 	string line[6];
+	
 	int id;
 	float ttrsv;
+	int nrOfEvaluatedTtrsGames;
 	
 	ifstream file;
 	file.open(paramPathToFileToLoadFrom, ios::in);
@@ -401,7 +406,7 @@ int loadFromFile(const char * paramPathToFileToLoadFrom)
 	
 	while (file.good())
 	{
-		for (int i = 0; i < 6; i++)
+		for (int i = 0; i < 8; i++)
 		{
 			getline(file,line[i]);
 		}
@@ -411,8 +416,11 @@ int loadFromFile(const char * paramPathToFileToLoadFrom)
 		
 		stringstream(line[0]) >> id;
 		stringstream(line[4]) >> ttrsv;
+		stringstream(line[5]) >> nrOfEvaluatedTtrsGames;
 		
-		addAccount(id, line[1], line[2], line[3], line[5]);
+		CAccount * account = addAccount(id, line[1], line[2], line[3], line[6], line[7]);
+		
+		account->setNrOfEvaluatedTtrsGames(nrOfEvaluatedTtrsGames);
 		
 		updateRating(id, ttrsv);
 	}
@@ -445,7 +453,9 @@ int saveToFile(const char * paramPathToFileToSaveTo)
 		file << element->account->getSecondName() << endl;
 		file << element->account->getThirdName() << endl;
 		file << element->account->getTtrsv() << endl;
+		file << element->account->getNrOfEvaluatedTtrsGames() << endl;
 		file << element->account->getDescription() << endl;
+		file << element->account->password << endl;
 		
 		element = element->nextElement;
 	}

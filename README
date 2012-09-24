@@ -10,7 +10,7 @@
 
 
 Tirili's Rating Server is a simple rating server written by Tirili with network code snippets from http://beej.us/guide/bgnet/ .
-It can be used for several games/disciplines with zero or negligible adaption required. Examples: Chessgames, OpenRA.
+It can be used for several games/disciplines with zero or only tiny adaptions required. Examples: Chessgames, OpenRA.
 
 
 
@@ -26,7 +26,7 @@ START:
 
 Just run the resulting binary file like this:
 
-./RatingServer FileToLoadFrom FileToSaveTo ListeningPortNr
+./RatingServer FileToLoadFrom FileToSaveTo ListeningPortNr MaxConnections
 
 
 
@@ -42,7 +42,8 @@ DOCUMENTATION:
 The rating server holds a list of accounts with each some nicknames and at least one rating system value and some more attributes related.
 The account list can be loaded from and saved to files. Sorted rating lists can be printed.
 For each game that is supposed to be evaluated a game server and participating game clients are required.
-The following communicatio protocol is used:
+
+The following communication PROTOCOL is used:
 	
 	
 	Let RS be the rating server, GS be the game server and CL1, ... , CLn be the game clients of which CL be a distinguished one.
@@ -53,20 +54,170 @@ The following communicatio protocol is used:
 		
 		sequence-length:command-id:data-subsequence,
 		
-		where sequence-length is the length in bytes of rest of the sequence being sent (at most '100') represented by 3 chars,
-		command-id is the two chars {'0', '1'} (this number 01 is reserved for the registration-command) and
+		where sequence-length is the length in bytes of the rest of the sequence being sent (at most '100') represented by 3 chars,
+		command-id is the two chars {'1', '0'} (this number 10 is reserved for the registration-command) and
 		data-subsequence is the concatenation of a null-terminated char sequence representing the first nickname of the account
 		 and a null-terminated char sequence representing the account password.
 		
-		Example:	{'0', '1', '5', '0', '1', 'J', 'o', 'e', '\0', 'g', 'R', 'e', 'E', 'n', '9', '9', '!', '\0'}
+		Example:	{'0', '1', '5', '1', '0', 'J', 'o', 'e', '\0', 'g', 'R', 'e', 'E', 'n', '9', '9', '!', '\0'}
 		
-				Notice that the "rest of the sequence" is 15 here, the command-id is 01, the nickname is Joe
+				Notice that the "rest of the sequence" is 15 here, the command-id is 01, the nickname is "Joe"
 				and the password is "gReEn99!" .
 		
-	The GS then returns the char sequence {'0', '0', '3', '0', '2', 's'} at success or {'0', '0', '3', '0', '2', 'f'} at failure.
+	The GS then returns the char sequence {'0', '0', '3', '1', '1', 's'} at success or {'0', '0', '3', '1', '1', 'f'} at failure.
 	
 	
-	All other commands which are sent between RS and GS or RS and CL obey the same constitution sequence-length:command-id:data-subsequence.
+	All other commands which are sent between RS and GS or RS and CL obey the same constitution (sequence-length:command-id:data-subsequence).
 	
 	
-	EXPLANATION OF THE REST OF THE COMMANDS GOES HERE
+	ALL COMMANDS:
+	
+	{s,f} means, that this char will be 's' for success or 'f' for failure.
+	"The sequence-length of the rest of the sequence being sent" must always precede command-id:data-subsequence.
+	
+		command-id:data-subsequence		sending-direction	description
+		-------------------------------------------------------------------------------------------------------------------
+		
+		
+		Ping
+		
+		00					CL v GS --> RS		Ping
+		01					RS --> (back)		Pong
+		
+		
+		Info Requesting		- Player info
+		
+		10:Nickname				CL --> RS		Request player info
+		11:{s,f}FirstName'\0'SecondName'\0'ThirdName'\0'NrOfDescriptionCommandsThatWillFollow
+		|					RS --> CL		Player info answer [1]
+		|								(NrOfDescriptionCommandsThatWillFollow must be
+		|								less or equal 5)
+		12:DescriptionLine_i			RS --> CL		Player info answer [2 to (n+1)]
+		13:RatingValue1'\0'RatingValue2'\0'...RatingValue_m'\0'
+		|					RS --> CL		Player info answer [(n+2)]
+		
+		Info Requesting 	- Rating List
+		
+		14:RatingValueNr			CL --> RS		Request rating-list sorted by rating value nr
+		15:{s,f}NrOfAccountsInListThatWillFollow
+		|					RS --> CL		Rating-list answer [1]
+		|								k := NrOfAccountsInListThatWillFollow
+		16:FirstName'\0'SecondName'\0'ThirdName'\0'
+		|					RS --> CL		Rating-list answer [2+2*i]
+		|								k commands of each this type and the next type will
+		|								be sent in an alternating order,
+		|								so i goes from 0 to (k-1)
+		|								The first account info that is sent is of
+		|								that account with the highest rating value
+		17:RatingValue1'\0'RatingValue2'\0'...RatingValue_m'\0'
+		|					RS --> CL		Rating-list answer [3+2*i]
+		
+		
+		Account modification 	- Registration
+		
+		20:Nickname'\0'Password'\0'		CL --> RS		Register new (basic) account
+		21:{s,f}ErrorMessage			RS --> CL		Result
+		
+		Account modification	- Account destails modification
+		
+		22:Nickname'\0'Password'\0'		CL --> RS		Account modification [1] (Nickname is any of the 3)
+		23:{s,f}FirstName'\0'SecondName'\0'ThirdName'\0'NrOfDescriptionCommandsThatWillFollow
+		|					RS --> CL		Account modification answer [1]
+		|								(NrOfDescriptionCommandsThatWillFollow must be
+		|								less or equal 5)
+		24:DescriptionLine_n			RS --> CL		Account modification answer [2 to (n+1)]
+		25:FirstName'\0'SecondName'\0'ThirdName'\0'NrOfDescriptionCommandsThatWillFollow
+		|					CL --> RS		Account modification [2]
+		|								(NrOfDescriptionCommandsThatWillFollow must be
+		|								less or equal 5)
+		26:DescriptionLine_n			CL --> RS		Account modification [3]
+		27:{s,f}ErrorMessage'\0'		RS --> CL		Account modification answer [3]
+		
+		Account modification	- Password modification
+		
+		28:Nickname'\0'OldPassword'\0'NewPassword'0'
+		|					CL --> RS		Change password
+		29:{s,f}ErrorMessage			RS --> CL		Result (Is always being send after at least
+		|								5 seconds delay - even at success!)
+		
+		
+		Game execution		- Game Creation
+		
+		50					GS --> RS		Game creation
+		51:GameKey'\0'				RS --> GS		Game creation answer
+		
+		Game execution		- Game server to client welcome
+		
+		52:GameKey'\0'				GS --> CL		Game server to client welcome command
+		53:'s'					CL --> GS		Confirmation
+		
+		Game execution		- Player sign up
+		
+		54:GameKey'\0'Nickname'\0'Password'\0'	CL --> RS		Player sign up for a game
+		55:{s,f}ErrorMessage			RS --> CL		Player sign up answer [1]
+		56:PlayerKey'\0'			RS --> CL		Player sign up answer [2]
+		
+		Game execution		- Player key transmission
+		
+		57:PlayerKey'\0'			CL --> GS		PlayerKey transmission
+		58:'s'					GS --> CL		Confirmation
+		
+		Game execution		- Game start
+		
+		60:RatingSystemNr'\0'GameKey'\0'NrOfPlayersInTeam1'\0'NrOfPlayersInTeam2'\0'
+		|					GS --> RS		Game start information
+		61:Team1Nickname1'\0'Team1Nickname2'\0'...Team1Nickname_n'\0'
+		|					GS --> RS		Nicknames of players in first team
+		62:Team2Nickname1'\0'Team2Nickname2'\0'...Team2Nickname_m'\0'
+		|					GS --> RS		Nicknames of players in second team
+		63:Team1PlayerKey1'\0'Team1PlayerKey2'\0'...Team1PlayerKey_n'\0'
+		|					GS --> RS		Keys of players in first team
+		64:Team2PlayerKey1'\0'Team2PlayerKey2'\0'...Team2PlayerKey_m'\0'
+		|					GS --> RS		Keys of players in second team
+		65:{s,f}ErrorMessage			RS --> GS		Game start information answer
+		
+		Game execution		- Feedback
+		
+		66:GameKey'\0'				GS --> RS		Feedback signal
+		67:{s,f}ErrorMessage			RS --> GS		Confirmation
+		
+		Game execution		- Game result transmission from game server to rating server
+		
+		70:GameKey'\0'{0,1,2}			GS --> RS		Result transmission
+		|								{0,1,2} is
+		|								'0' if the game ended in a draw
+		|								'1' if the first team won
+		|								'2' if the second team won
+		71:Team1PlayerEfficiency_1'\0'Team1PlayerEfficiency_2'\0'...Team1PlayerEfficiency_n'\0'
+		|					GS --> RS		Efficiency of players in first team
+		72:Team2PlayerEfficiency_1'\0'Team2PlayerEfficiency_2'\0'...Team2PlayerEfficiency_m'\0'
+		|					GS --> RS		Efficiency of players in second team
+		73:{s,f}ErrorMessage			RS --> GS		Confirmation
+		
+		Game execution		- Game result transmission from game client to rating server
+		
+		74:{0,1,2}				CL --> RS		Result transmission
+		|								{0,1,2} is
+		|								'0' if the game ended in a draw
+		|								'1' if the first team won
+		|								'2' if the second team won
+		75:{s,f}ErrorMessage			RS --> CL		Confirmation
+		
+		Game execution		- Rating value update information
+		
+		80:NrOfPlayersInTeam1'\0'NrOfPlayersInTeam2'\0'
+							RS --> CL		Rating value update information
+		81:Team1Nickname1'\0'Team1Nickname2'\0'...Team1Nickname_n'\0'
+		|					RS --> CL		Nicknames of players in first team
+		82:Team2Nickname1'\0'Team2Nickname2'\0'...Team2Nickname_m'\0'
+		|					RS --> CL		Nicknames of players in second team
+		83:Team1OldValue1'\0'Team1OldValue2'\0'...Team1OldValue_n'\0'
+		|					RS --> CL		Old rating values of players in first team
+		84:Team2OldValue1'\0'Team2OldValue2'\0'...Team2OldValue_m'\0'
+		|					RS --> CL		Old rating values of players in second team
+		83:Team1NewValue1'\0'Team1NewValue2'\0'...Team1NewValue_n'\0'
+		|					RS --> CL		New rating values of players in first team
+		84:Team2NewValue1'\0'Team2NewValue2'\0'...Team2NewValue_m'\0'
+		|					RS --> CL		New rating values of players in second team
+		85					CL --> RS		Confirmation
+		
