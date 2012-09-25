@@ -32,7 +32,8 @@ public:
 };
 
 void *get_in_addr(struct sockaddr *sa);
-void setupConnectionsAndManageCommunications(char * listeningPortNr, char * maxConnections);
-void handleIncomingData(int socket);
+void sendCommand(int paramSocketFd, const void *paramSendBuffer, size_t paramLength);
+void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char * paramMaxConnections);
+void handleIncomingData(int paramSocketFd);
 
 #endif

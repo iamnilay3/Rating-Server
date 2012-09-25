@@ -65,9 +65,17 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-void setupConnectionsAndManageCommunications(char * listeningPortNr, char * maxConnections)
+void sendCommand(int paramSocketFd, const void *paramSendBuffer, size_t paramLength)
 {
-	socketBuffer = new CCircularBuffer[atoi(maxConnections) + 4];
+	if (send(paramSocketFd, paramSendBuffer, paramLength, 0) == -1)
+	{
+		perror("send");
+	}
+}
+
+void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char * paramMaxConnections)
+{
+	socketBuffer = new CCircularBuffer[atoi(paramMaxConnections) + 4];
 	
 	fd_set master;    // master file descriptor list
 	fd_set read_fds;  // temp file descriptor list for select()
@@ -100,7 +108,7 @@ void setupConnectionsAndManageCommunications(char * listeningPortNr, char * maxC
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
-	if ((rv = getaddrinfo(NULL, listeningPortNr, &hints, &ai)) != 0)
+	if ((rv = getaddrinfo(NULL, paramListeningPortNr, &hints, &ai)) != 0)
 	{
 		fprintf(stderr, "selectserver: %s\n", gai_strerror(rv));
 		exit(1);
@@ -295,17 +303,24 @@ cin >> k;
 	} // END for(;;)
 }
 
-void handleIncomingData(int socket)
+void handleIncomingData(int paramSocketFd)
 {
-	CCircularBuffer * circularBuffer = &socketBuffer[socket];
+	CCircularBuffer * circularBuffer = &socketBuffer[paramSocketFd];
 	
 	int start = circularBuffer->dataStart;				// Data start
 	int rest = circularBuffer->restOfSequenceLength - 2;		// Length of the rest of the sequence after the command-id
 	int cid = circularBuffer->commandType;				// Command-id
 	
+	string sendString;
+	char sendBuffer[1000];
+	
 	switch (cid)
 	{
-		case 0:
+		case 00:
+			sendString = "00201";
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramSocketFd, sendBuffer, 5);
+			
 			break;
 		case 10:
 			break;
