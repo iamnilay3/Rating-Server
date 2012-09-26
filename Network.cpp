@@ -144,7 +144,7 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 	freeaddrinfo(ai); // all done with this
 	
 	// listen
-	if (listen(listener, 1000) == -1)
+	if (listen(listener, paramMaxConnections) == -1)
 	{
 		perror("listen");
 		exit(3);
@@ -316,15 +316,15 @@ void handleIncomingData(int paramSocketFd)
 	
 	switch (cid)
 	{
-		case 00:
+		case 00:	// Ping
 			sendString = "00201";
 			strcpy(sendBuffer, sendString.c_str());
 			sendCommand(paramSocketFd, sendBuffer, 5);
 			
 			break;
-		case 10:
+		case 10:	// Info Requesting	- Player info
 			break;
-		case 14:
+		case 15:
 			break;
 		case 20:
 			break;

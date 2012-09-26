@@ -52,37 +52,42 @@ int main(int argc, char * argv[])
 	setupAccountList();
 	setupRatingList();
 	
-	// loadFromFile(argv[1]);	// Load data from file AccountData.trs
+	loadFromFile(argv[1]);	// Load data from file AccountData.trs
 	
-/*	
+/*
 	// Account managing tests:
 	
-	addAccount(1, "Lux", "Eagle", "Lion", "Some cool dude! Visit http://content.open-ra.org !", "fghr", false);
-	addAccount(2, "Boris", "", "", "yo I'm da Boris!", "kizhr4", false);
-	CAccount * account = addAccount(4, "JoSI", "mayhem", "", "deluxe", "j2hz53rfgsw", false);
+	addAccount(1, "Lux", "Eagle", "Lion", false, "Some cool dude! Visit http://content.open-ra.org !", "fghr", false);
+	addAccount(2, "Boris", "", "", false, "yo I'm da Boris!", "kizhr4", false);
+	CAccount * account = addAccount(4, "JoSI", "mayhem", "", true, "deluxe", "j2hz53rfgsw", false);
 	
 	printRatingList();
 	
 	updateRating(2, 1293.47);
 	updateRating(1, 874.232);
 	
+	cout << "Games: " << account->getPublicNrOfEvaluatedTtrsGames() << endl << endl;
+	
 	account->setNrOfEvaluatedTtrsGames(21);
 	
-	addAccount(5, "Pirc", "", "jatso", "_#*#_", "w345trgfhuxd", false);
+	cout << "Games: " << account->getPublicNrOfEvaluatedTtrsGames() << endl << endl;
+	
+	addAccount(5, "Pirc", "", "jatso", true, "_#*#_", "w345trgfhuxd", false);
+*/
 	
 	printRatingList();
 	printAccountList();
-*/
+
 	
-	setupConnectionsAndManageCommunications(argv[3], argv[4]);
+//	setupConnectionsAndManageCommunications(argv[3], argv[4]);
 	
-	saveToFile(argv[2]);
+//	saveToFile(argv[2]);
 	
 	return 0;
 }
 
 CAccount::CAccount(int paramId, string paramFirstName, string paramSecondName, string paramThirdName,	// Trivial constructor
-			string paramDescription, string paramPassword)
+			bool paramPrivateNrOfEvaluatedTtrsGames, string paramDescription, string paramPassword)
 {
 	id = paramId;
 	
@@ -102,6 +107,8 @@ CAccount::CAccount(int paramId, string paramFirstName, string paramSecondName, s
 	ttrsv = 1000;					// Let 1000 be the future average rating value of all players
 	
 	nrOfEvaluatedTtrsGames = 0;
+	
+	privateNrOfEvaluatedTtrsGames = paramPrivateNrOfEvaluatedTtrsGames;
 }
 
 CAccount::~CAccount()
@@ -139,9 +146,25 @@ int CAccount::getNrOfEvaluatedTtrsGames()
 	return nrOfEvaluatedTtrsGames;
 }
 
+int CAccount::getPublicNrOfEvaluatedTtrsGames()
+{
+	if (getPrivateNrOfEvaluatedTtrsGames() && (nrOfEvaluatedTtrsGames > 20))	return (-1);
+	else									return nrOfEvaluatedTtrsGames;
+}
+
 void CAccount::setNrOfEvaluatedTtrsGames(int paramNrOfEvaluatedTtrsGames)
 {
 	nrOfEvaluatedTtrsGames = paramNrOfEvaluatedTtrsGames;
+}
+
+bool CAccount::getPrivateNrOfEvaluatedTtrsGames()
+{
+	return privateNrOfEvaluatedTtrsGames;
+}
+
+void CAccount::setPrivateNrOfEvaluatedTtrsGames(bool paramPrivateNrOfEvaluatedTtrsGames)
+{
+	privateNrOfEvaluatedTtrsGames = paramPrivateNrOfEvaluatedTtrsGames;
 }
 
 string CAccount::getDescription()
@@ -265,7 +288,7 @@ CRatingListElement * extractRatingListElement(int paramId)
 }
 
 CAccount * addAccount(int paramId, string paramFirstName, string paramSecondName, string paramThirdName,
-		      string paramDescription, string paramPassword, bool verbose)
+		      bool paramPrivateNrOfEvaluatedTtrsGames, string paramDescription, string paramPassword, bool verbose)
 {
 	if ((getIdFromName(paramFirstName) > 0) || (getIdFromName(paramSecondName) > 0) || (getIdFromName(paramThirdName) > 0))
 	{
@@ -274,7 +297,8 @@ CAccount * addAccount(int paramId, string paramFirstName, string paramSecondName
 		return 0;
 	}
 	
-	CAccount * account = new CAccount(paramId, paramFirstName, paramSecondName, paramThirdName, paramDescription, paramPassword);
+	CAccount * account = new CAccount(paramId, paramFirstName, paramSecondName, paramThirdName,
+					  paramPrivateNrOfEvaluatedTtrsGames, paramDescription, paramPassword);
 	
 	
 	CAccountListElement * accountListElement = new CAccountListElement;
@@ -388,11 +412,12 @@ void printRatingList()
 
 int loadFromFile(const char * paramPathToFileToLoadFrom)
 {
-	string line[6];
+	string line[9];
 	
 	int id;
 	float ttrsv;
 	int nrOfEvaluatedTtrsGames;
+	bool privateNrOfEvaluatedTtrsGames;
 	
 	ifstream file;
 	file.open(paramPathToFileToLoadFrom, ios::in);
@@ -406,7 +431,7 @@ int loadFromFile(const char * paramPathToFileToLoadFrom)
 	
 	while (file.good())
 	{
-		for (int i = 0; i < 8; i++)
+		for (int i = 0; i < 9; i++)
 		{
 			getline(file,line[i]);
 		}
@@ -417,8 +442,9 @@ int loadFromFile(const char * paramPathToFileToLoadFrom)
 		stringstream(line[0]) >> id;
 		stringstream(line[4]) >> ttrsv;
 		stringstream(line[5]) >> nrOfEvaluatedTtrsGames;
+		privateNrOfEvaluatedTtrsGames = line[6].compare("true");
 		
-		CAccount * account = addAccount(id, line[1], line[2], line[3], line[6], line[7]);
+		CAccount * account = addAccount(id, line[1], line[2], line[3], privateNrOfEvaluatedTtrsGames, line[7], line[8]);
 		
 		account->setNrOfEvaluatedTtrsGames(nrOfEvaluatedTtrsGames);
 		
@@ -454,6 +480,7 @@ int saveToFile(const char * paramPathToFileToSaveTo)
 		file << element->account->getThirdName() << endl;
 		file << element->account->getTtrsv() << endl;
 		file << element->account->getNrOfEvaluatedTtrsGames() << endl;
+		file << (element->account->getPrivateNrOfEvaluatedTtrsGames() ? "true" : "false") << endl;
 		file << element->account->getDescription() << endl;
 		file << element->account->password << endl;
 		

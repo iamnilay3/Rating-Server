@@ -25,13 +25,15 @@ private:
 	
 	int nrOfEvaluatedTtrsGames;				// Number of evaluated ttrs games
 	
+	bool privateNrOfEvaluatedTtrsGames;			// Wheter to show "> 20" instead of the real number of games in public (if > 20)
+	
 	string description;					// E-mail address, website, player info and other voluntary stuff goes here
 	
 	string password;					// Account password
 	
 public:
 	CAccount(int paramId, string paramFirstName, string paramSecondName, string paramThirdName,	// Trivial constructor
-		 string paramDescription, string paramPassword);
+		 bool paramPrivateNrOfEvaluatedTtrsGames, string paramDescription, string paramPassword);
 	
 	~CAccount();
 	
@@ -47,7 +49,13 @@ public:
 	
 	int getNrOfEvaluatedTtrsGames();
 	
+	int getPublicNrOfEvaluatedTtrsGames();
+	
 	void setNrOfEvaluatedTtrsGames(int paramNrOfEvaluatedTtrsGames);
+	
+	bool getPrivateNrOfEvaluatedTtrsGames();
+	
+	void setPrivateNrOfEvaluatedTtrsGames(bool paramPrivateNrOfEvaluatedTtrsGames);
 	
 	string getDescription();
 	
@@ -97,7 +105,7 @@ void insertIntoRatingList(CRatingListElement ratingListElement);
 CAccountListElement * extractAccountListElement(int paramId);
 CRatingListElement * extractRatingListElement(int paramId);
 CAccount * addAccount(int paramId, string paramFirstName, string paramSecondName, string paramThirdName,
-		      string paramDescription, string paramPassword, bool verbose = false);
+		      bool paramPrivateNrOfEvaluatedTtrsGames, string paramDescription, string paramPassword, bool verbose = false);
 void removeAccount(int paramID);
 int getIdFromName(string paramName);
 void updateRating(int paramId, float paramTtrsv, bool verbose = false);

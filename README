@@ -95,22 +95,26 @@ The following communication PROTOCOL is used:
 		12:DescriptionLine_i			RS --> CL		Player info answer [2 to (n+1)]
 		13:RatingValue1'\0'RatingValue2'\0'...RatingValue_m'\0'
 		|					RS --> CL		Player info answer [(n+2)]
+		14:PlayedGames1'\0'PlayedGames2'\0'...PlayedGames_m'\0'
+		|					RS --> CL		Player info answer [(n+3)]
 		
 		Info Requesting 	- Rating List
 		
-		14:RatingValueNr			CL --> RS		Request rating-list sorted by rating value nr
-		15:{s,f}NrOfAccountsInListThatWillFollow
+		15:RatingValueNr			CL --> RS		Request rating-list sorted by rating value nr
+		16:{s,f}NrOfAccountsInListThatWillFollow
 		|					RS --> CL		Rating-list answer [1]
 		|								k := NrOfAccountsInListThatWillFollow
-		16:FirstName'\0'SecondName'\0'ThirdName'\0'
-		|					RS --> CL		Rating-list answer [2+2*i]
-		|								k commands of each this type and the next type will
+		17:FirstName'\0'SecondName'\0'ThirdName'\0'
+		|					RS --> CL		Rating-list answer [2+3*i]
+		|								k commands of each this type and the next two types will
 		|								be sent in an alternating order,
 		|								so i goes from 0 to (k-1)
 		|								The first account info that is sent is of
 		|								that account with the highest rating value
-		17:RatingValue1'\0'RatingValue2'\0'...RatingValue_m'\0'
-		|					RS --> CL		Rating-list answer [3+2*i]
+		18:RatingValue1'\0'RatingValue2'\0'...RatingValue_m'\0'
+		|					RS --> CL		Rating-list answer [3+3*i]
+		19:PlayedGames1'\0'PlayedGames2'\0'...PlayedGames_m'\0'
+		|					RS --> CL		Player info answer [4+3*i]
 		
 		
 		Account modification 	- Registration
