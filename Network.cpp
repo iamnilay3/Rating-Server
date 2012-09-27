@@ -25,6 +25,7 @@
 
 #include "RatingServer.h"
 #include "Network.h"
+#include "Games.h"
 
 using namespace std;
 
@@ -86,7 +87,7 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 	struct sockaddr_storage remoteaddr; // client address
 	socklen_t addrlen;
 	
-	char buf[1000];    // buffer for client data
+	char buf[1001];    // buffer for client data
 	int nbytes;
 	
 	char remoteIP[INET6_ADDRSTRLEN];
@@ -144,7 +145,7 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 	freeaddrinfo(ai); // all done with this
 	
 	// listen
-	if (listen(listener, paramMaxConnections) == -1)
+	if (listen(listener, atoi(paramMaxConnections)) == -1)
 	{
 		perror("listen");
 		exit(3);
@@ -217,17 +218,18 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 						// we got some data from a client
 						
 						cicularBuffer = &socketBuffer[i];
-cout << endl << "1) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
 						
+nbytes -= 2; // fix (remove this line, when not testing with telnet!)
 						for (j = 0, k = cicularBuffer->nextInsert; j < nbytes; j++, k++)	// Copy into circular buffer!
 						{
 							cicularBuffer->content[k % 2000] = buf[j];
 						}
 						cicularBuffer->nextInsert = k % 2000;
 						
+/*cout << endl << "1) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
 print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
-cout << endl << "cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
-cout << endl << "cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;
+cout << endl << "1) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
+cout << endl << "1) cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;*/
 						for (;;)
 						{
 							if (!cicularBuffer->restOfSequenceLengthDetermined)
@@ -251,10 +253,10 @@ cout << endl << "cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << e
 									break;
 								}
 							}
-print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
+/*print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
 cout << endl << "2) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
 cout << endl << "2) cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;
-cout << endl << "2) cicularBuffer->restOfSequenceLength = " << cicularBuffer->restOfSequenceLength << endl << endl;
+cout << endl << "2) cicularBuffer->restOfSequenceLength = " << cicularBuffer->restOfSequenceLength << endl << endl;*/
 							
 							if (!cicularBuffer->commandTypeDetermined)
 							{
@@ -276,20 +278,18 @@ cout << endl << "2) cicularBuffer->restOfSequenceLength = " << cicularBuffer->re
 									break;
 								}
 							}
-print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
+/*print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
 cout << endl << "3) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
 cout << endl << "3) cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;
 cout << endl << "3) cicularBuffer->restOfSequenceLength = " << cicularBuffer->restOfSequenceLength << endl << endl;
 cout << endl << "3) cicularBuffer->commandType = " << cicularBuffer->commandType << endl << endl;
 cout << endl << "3) cicularBuffer->dataLoad() = " << cicularBuffer->dataLoad() << endl << endl;
-cin >> k;
+cin >> k;*/
 							if (cicularBuffer->dataLoad() >= cicularBuffer->restOfSequenceLength - 2)
 							{
 							// If enough data received, get and handle command!
 								handleIncomingData(i);
-cout << "handled incoming data";
-break;
-cin >> k;
+cout << "Handled incoming data! :)" << endl << endl;
 							}
 							else
 							{
@@ -305,6 +305,8 @@ cin >> k;
 
 void handleIncomingData(int paramSocketFd)
 {
+	int i,j,k,l;
+	
 	CCircularBuffer * circularBuffer = &socketBuffer[paramSocketFd];
 	
 	int start = circularBuffer->dataStart;				// Data start
@@ -314,6 +316,12 @@ void handleIncomingData(int paramSocketFd)
 	string sendString;
 	char sendBuffer[1000];
 	
+	string * subsequence;
+	string s;
+	char cp[6];
+	
+	CAccount * account;
+	
 	switch (cid)
 	{
 		case 00:	// Ping
@@ -321,10 +329,86 @@ void handleIncomingData(int paramSocketFd)
 			strcpy(sendBuffer, sendString.c_str());
 			sendCommand(paramSocketFd, sendBuffer, 5);
 			
+			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+			
 			break;
 		case 10:	// Info Requesting	- Player info
+			subsequence = new string();
+			
+			subsequence->append(&(circularBuffer->content[start]), rest);
+			
+			account = getAccountFromName(*subsequence);
+			
+			if (account == 0)
+			{
+				sendString = "00311f";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, 6);
+				
+				circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+				
+				break;
+			}
+			
+			i = account->getDescription().length();
+			j = i / 995;
+			k = i % 995;
+			l = j + (k != 0);
+			
+			sendString = "00311s";
+			sendString.append(account->getFirstName());
+			//sendString.append(1, '\0');
+			sendString.append(account->getSecondName());
+			//sendString.append(1, '\0');
+			sendString.append(account->getThirdName());
+			//sendString.append(1, '\0');
+			
+			sprintf(cp, "%d",l);
+			sendString.append(1, *cp);
+			
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			
+			sendString = "";
+			
+			for (i = 0; i < j; i++)
+			{
+				sendString = "99712";
+				sendString.append(account->getDescription().substr(i * 995, 995));
+				
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			}
+			
+			sendString = "";
+			sprintf(cp, "%03d", 2 + k);
+			sendString.append(cp, 3);
+			sendString.append("12");
+			sendString.append(account->getDescription().substr(j * 995, k));
+			
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			
+			sendString = "00713";
+			sprintf(cp, "%04.0f", account->getTtrsv());
+			sendString.append(cp, 4);
+			sendString.append(1, '\0');
+			
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			
+			sendString = "00814";
+			sprintf(cp, "%05d", account->getPublicNrOfEvaluatedTtrsGames());
+			sendString.append(cp, 5);
+			sendString.append(1, '\0');
+			
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			
+			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+			
 			break;
-		case 15:
+/*		case 15:
 			break;
 		case 20:
 			break;
@@ -364,8 +448,11 @@ void handleIncomingData(int paramSocketFd)
 			break;
 		case 85:
 			break;
-		default:
+*/		default:
 			cout << "This command is not yet implemented." << endl << endl;
 			break;
 	}
+	
+	circularBuffer->restOfSequenceLengthDetermined = false;
+	circularBuffer->commandTypeDetermined = false;
 }

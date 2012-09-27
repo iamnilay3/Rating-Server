@@ -77,9 +77,8 @@ int main(int argc, char * argv[])
 	
 	printRatingList();
 	printAccountList();
-
 	
-//	setupConnectionsAndManageCommunications(argv[3], argv[4]);
+	setupConnectionsAndManageCommunications(argv[3], argv[4]);
 	
 //	saveToFile(argv[2]);
 	
@@ -148,7 +147,7 @@ int CAccount::getNrOfEvaluatedTtrsGames()
 
 int CAccount::getPublicNrOfEvaluatedTtrsGames()
 {
-	if (getPrivateNrOfEvaluatedTtrsGames() && (nrOfEvaluatedTtrsGames > 20))	return (-1);
+	if (privateNrOfEvaluatedTtrsGames && (nrOfEvaluatedTtrsGames > 20))	return (-1);
 	else									return nrOfEvaluatedTtrsGames;
 }
 
@@ -355,6 +354,22 @@ int getIdFromName(string paramName)
 	return (element->id);
 }
 
+CAccount * getAccountFromName(string paramName)
+{
+	if (paramName == "") return 0;
+	
+	CAccountListElement * element = accountListStart;
+	
+	while((element->id == -2) || ((element->id != -1) && (element->account->getFirstName() != paramName)
+					&& (element->account->getSecondName() != paramName)
+					&& (element->account->getThirdName() != paramName)))
+	{
+		element = element->nextElement;
+	}
+	
+	return (element->account);
+}
+
 void updateRating(int paramId, float paramTtrsv, bool verbose)
 {
 	CRatingListElement * element = extractRatingListElement(paramId);
@@ -442,7 +457,7 @@ int loadFromFile(const char * paramPathToFileToLoadFrom)
 		stringstream(line[0]) >> id;
 		stringstream(line[4]) >> ttrsv;
 		stringstream(line[5]) >> nrOfEvaluatedTtrsGames;
-		privateNrOfEvaluatedTtrsGames = line[6].compare("true");
+		privateNrOfEvaluatedTtrsGames = (line[6].compare("true") == 0);
 		
 		CAccount * account = addAccount(id, line[1], line[2], line[3], privateNrOfEvaluatedTtrsGames, line[7], line[8]);
 		

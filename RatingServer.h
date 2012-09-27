@@ -108,6 +108,7 @@ CAccount * addAccount(int paramId, string paramFirstName, string paramSecondName
 		      bool paramPrivateNrOfEvaluatedTtrsGames, string paramDescription, string paramPassword, bool verbose = false);
 void removeAccount(int paramID);
 int getIdFromName(string paramName);
+CAccount * getAccountFromName(string paramName);
 void updateRating(int paramId, float paramTtrsv, bool verbose = false);
 void printAccountList();
 void printRatingList();
