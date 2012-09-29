@@ -59,10 +59,11 @@ void print_dec_byte_content(char * pointer, int length)
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
-	if (sa->sa_family == AF_INET) {
+	if (sa->sa_family == AF_INET)
+	{
 		return &(((struct sockaddr_in*)sa)->sin_addr);
 	}
-
+	
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
@@ -76,8 +77,6 @@ void sendCommand(int paramSocketFd, const void *paramSendBuffer, size_t paramLen
 
 void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char * paramMaxConnections)
 {
-	socketBuffer = new CCircularBuffer[atoi(paramMaxConnections) + 4];
-	
 	fd_set master;    // master file descriptor list
 	fd_set read_fds;  // temp file descriptor list for select()
 	int fdmax;        // maximum file descriptor number
@@ -93,14 +92,17 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 	char remoteIP[INET6_ADDRSTRLEN];
 	
 	int yes=1;        // for setsockopt() SO_REUSEADDR, below
-	int i, k, j, rv;
-	
-	char tempString[4];
 	
 	CCircularBuffer * cicularBuffer;
 	
 	struct addrinfo hints, *ai, *p;
 	
+	socketBuffer = new CCircularBuffer[atoi(paramMaxConnections) + 4];
+	
+	int i, k, j, rv;
+	
+	char tempString[4];
+
 	FD_ZERO(&master);    // clear the master and temp sets
 	FD_ZERO(&read_fds);
 	
@@ -219,17 +221,17 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 						
 						cicularBuffer = &socketBuffer[i];
 						
-nbytes -= 2; // fix (remove this line, when not testing with telnet!)
+//nbytes -= 2; // Fix (Remove this line, when not testing with telnet!)
 						for (j = 0, k = cicularBuffer->nextInsert; j < nbytes; j++, k++)	// Copy into circular buffer!
 						{
 							cicularBuffer->content[k % 2000] = buf[j];
 						}
 						cicularBuffer->nextInsert = k % 2000;
 						
-/*cout << endl << "1) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
+cout << endl << "1) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
 print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
 cout << endl << "1) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
-cout << endl << "1) cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;*/
+cout << endl << "1) cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;
 						for (;;)
 						{
 							if (!cicularBuffer->restOfSequenceLengthDetermined)
@@ -278,13 +280,13 @@ cout << endl << "2) cicularBuffer->restOfSequenceLength = " << cicularBuffer->re
 									break;
 								}
 							}
-/*print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
+print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
 cout << endl << "3) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
 cout << endl << "3) cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;
 cout << endl << "3) cicularBuffer->restOfSequenceLength = " << cicularBuffer->restOfSequenceLength << endl << endl;
 cout << endl << "3) cicularBuffer->commandType = " << cicularBuffer->commandType << endl << endl;
 cout << endl << "3) cicularBuffer->dataLoad() = " << cicularBuffer->dataLoad() << endl << endl;
-cin >> k;*/
+//cin >> k;
 							if (cicularBuffer->dataLoad() >= cicularBuffer->restOfSequenceLength - 2)
 							{
 							// If enough data received, get and handle command!
