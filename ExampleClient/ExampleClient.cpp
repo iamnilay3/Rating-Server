@@ -301,9 +301,6 @@ void commandTesting(int paramSocketFd)
 		delete account;
 	}
 	
-
-
-	
 	for (i = 0; i < 3; i++)
 	{
 		if ((lengthOfReceivedSequence = recv(paramSocketFd, receiveBuffer, 1000, 0)) == -1)

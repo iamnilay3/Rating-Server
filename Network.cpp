@@ -67,6 +67,14 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+void copyToBuffer(char * paramBuffer, string paramSendString, size_t paramSendStringLength)
+{
+	for (int i = 0; i < paramSendStringLength; i++)
+	{
+		paramBuffer[i] = paramSendString.at(i);
+	}
+}
+
 void sendCommand(int paramSocketFd, const void *paramSendBuffer, size_t paramLength)
 {
 	if (send(paramSocketFd, paramSendBuffer, paramLength, 0) == -1)
@@ -307,7 +315,7 @@ cout << "Handled incoming data! :)" << endl << endl;
 
 void handleIncomingData(int paramSocketFd)
 {
-	int i,j,k,l;
+	int i, j, k, l;
 	
 	CCircularBuffer * circularBuffer = &socketBuffer[paramSocketFd];
 	
@@ -357,18 +365,19 @@ void handleIncomingData(int paramSocketFd)
 			k = i % 995;
 			l = j + (k != 0);
 			
-			sendString = "00311s";
+			sendString = "???11s";
 			sendString.append(account->getFirstName());
-			//sendString.append(1, '\0');
+			sendString.append(1, '\0');
 			sendString.append(account->getSecondName());
-			//sendString.append(1, '\0');
+			sendString.append(1, '\0');
 			sendString.append(account->getThirdName());
-			//sendString.append(1, '\0');
+			sendString.append(1, '\0');
 			
-			sprintf(cp, "%d",l);
+			sprintf(cp, "%d", l);
 			sendString.append(1, *cp);
 			
-			strcpy(sendBuffer, sendString.c_str());
+			copyToBuffer(sendBuffer, sendString, sendString.length());
+			sprintf(sendBuffer, "%03d", sendString.length());
 			sendCommand(paramSocketFd, sendBuffer, sendString.length());
 			
 			sendString = "";
