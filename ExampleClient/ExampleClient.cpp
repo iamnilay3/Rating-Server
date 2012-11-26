@@ -29,6 +29,7 @@ using namespace std;
 
 void *get_in_addr(struct sockaddr *sa);
 void sendCommand(int paramSocketFd, const void *paramSendBuffer, size_t paramLength);
+int fetchSequence(int paramSocketFd, char * receiveBuffer);
 void commandTesting(int paramSocketFd);
 
 int main(int argc, char *argv[])
@@ -112,17 +113,77 @@ void sendCommand(int paramSocketFd, const void *paramSendBuffer, size_t paramLen
 	}
 }
 
+int fetchSequence(int paramSocketFd, char * receiveBuffer)
+{
+	int restOfSequenceLength;
+	char tempString[4];
+	
+	if (recv(paramSocketFd, receiveBuffer, 5, 0) == -1)
+	{
+		perror("recv");
+		exit(1);
+	}
+	
+	tempString[0] = receiveBuffer[0];
+	tempString[1] = receiveBuffer[1];
+	tempString[2] = receiveBuffer[2];
+	tempString[3] = '\0';
+	restOfSequenceLength = atoi(tempString);
+	
+	if ((restOfSequenceLength - 2 > 0) && (recv(paramSocketFd, receiveBuffer + 5, restOfSequenceLength - 2, 0) == -1))
+	{
+		perror("recv");
+		exit(1);
+	}
+	
+	return (restOfSequenceLength + 3);
+}
+
+class CAccount
+{
+public:
+	string firstName, secondName, thirdName;
+	
+	string ttrsv;
+	
+	string publicNumberOfRatedTtrsGamesPlayed;
+	
+	string description;
+	
+	CAccount()
+	{
+	}
+	
+	CAccount(string paramFirstName, string paramSecondName, string paramThirdName,
+		 int paramTtrsv, int paramPublicNumberOfRatedTtrsGamesPlayed, string paramDescription)
+	{
+		firstName = paramFirstName; secondName = paramSecondName; thirdName = paramThirdName;
+		ttrsv = paramTtrsv; publicNumberOfRatedTtrsGamesPlayed = paramPublicNumberOfRatedTtrsGamesPlayed; description = paramDescription;
+	}
+	
+	void print()
+	{
+		cout << "First Name: " << firstName << "   Second Name: " << secondName << "   Third Name: " << thirdName << endl << endl;
+		cout << "Ttrsv: " << ttrsv << " (" << publicNumberOfRatedTtrsGamesPlayed << ")" << endl << endl;
+		cout << "Description: " << description  << endl << endl;
+	}
+};
+
 void commandTesting(int paramSocketFd)
 {
 	// This function contains the command tests.
 	
-	int i;
+	int i, j, k, l;
 	
 	char receiveBuffer[1001];
 	int lengthOfReceivedSequence;
 	
 	string sendString;
 	char sendBuffer[1000];
+	
+	string * subsequence;
+	char compareCharArray[1000];
+	char cp[6];
 	
 	// Testing the Ping command (command-id = 00):
 	
@@ -134,15 +195,20 @@ void commandTesting(int paramSocketFd)
 	
 	cout << "Ping command sent - waiting for server answer..." << endl << endl;
 	
-	if ((lengthOfReceivedSequence = recv(paramSocketFd, receiveBuffer, 1000, 0)) == -1)
-	{
-		perror("recv");
-		exit(1);
-	}
+	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 	
 	receiveBuffer[lengthOfReceivedSequence] = '\0';
 	
-	printf("client: received '%s'\n\n",receiveBuffer);
+	printf("client: received '%s'\n\n", receiveBuffer);
+	
+	subsequence = new string();
+	
+	subsequence->append(receiveBuffer, 5);
+	
+	if (subsequence->compare("00201") == 0)
+	{
+		cout << "Pong received - ping works!" << endl << endl;
+	}
 	
 	// Testing the Info Requesting - Player Info command (command-id = 10):
 	
@@ -153,6 +219,90 @@ void commandTesting(int paramSocketFd)
 	sendCommand(paramSocketFd, sendBuffer, 9);
 	
 	cout << "Info Requesting - Player Info command sent - waiting for server answer..." << endl << endl;
+	
+	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+	
+	receiveBuffer[lengthOfReceivedSequence] = '\0';
+	
+	printf("client: received '%s'\n\n", receiveBuffer);
+	
+	if (receiveBuffer[5] == 'f')
+	{
+		cout << "Received error signal from server: The name you specified might not be available." << endl << endl;
+	}
+	else
+	{
+		CAccount * account = new CAccount();
+		
+		*subsequence = "";
+		
+		i = 6;
+		
+		while ((*cp = receiveBuffer[i]) != '\0')
+		{
+			subsequence->append(cp, 1);
+			i++;
+		}
+		
+		account->firstName = *subsequence;
+		
+		*subsequence = "";
+		
+		i++;
+		
+		while ((*cp = receiveBuffer[i]) != '\0')
+		{
+			subsequence->append(cp, 1);
+			i++;
+		}
+		
+		account->secondName = *subsequence;
+		
+		*subsequence = "";
+		
+		i++;
+		
+		while ((*cp = receiveBuffer[i]) != '\0')
+		{
+			subsequence->append(cp, 1);
+			i++;
+		}
+		
+		account->thirdName = *subsequence;
+		
+		j = ((int) receiveBuffer[++i]) - 48;
+		
+		for (i = 0; i < j - 1; i++)
+		{
+			lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+			
+			account->description.append(&receiveBuffer[5], 995);
+		}
+		
+		lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+		
+		account->description.append(&receiveBuffer[5], lengthOfReceivedSequence - 5);
+		
+		lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+		
+		account->ttrsv.append(&receiveBuffer[5], lengthOfReceivedSequence - 6); 
+		
+		lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+		
+		account->publicNumberOfRatedTtrsGamesPlayed.append(&receiveBuffer[5], lengthOfReceivedSequence - 6); 
+		
+		if (account->publicNumberOfRatedTtrsGamesPlayed.compare("-0001") == 0)
+		{
+			account->publicNumberOfRatedTtrsGamesPlayed = "> 20";
+		}
+		
+		account->print();
+		
+		delete account;
+	}
+	
+
+
 	
 	for (i = 0; i < 3; i++)
 	{
