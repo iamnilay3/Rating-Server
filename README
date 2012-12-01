@@ -18,7 +18,7 @@ COMPILE:
 
 Just use g++ or another c++ compiler and compile the source code accordingly:
 
-g++ RatingServer.cpp Network.cpp Games.cpp -o RatingServer
+g++ -std=c++11 RatingServer.cpp Network.cpp Games.cpp -o RatingServer
 
 To compile the simple example client change to the ExampleClient subfolder and run accordingly:
 

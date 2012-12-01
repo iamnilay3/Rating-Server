@@ -161,12 +161,23 @@ public:
 		ttrsv = paramTtrsv; publicNumberOfRatedTtrsGamesPlayed = paramPublicNumberOfRatedTtrsGamesPlayed; description = paramDescription;
 	}
 	
-	void print()
+	void print(bool printDescription)
 	{
 		cout << "First Name: " << firstName << "   Second Name: " << secondName << "   Third Name: " << thirdName << endl << endl;
 		cout << "Ttrsv: " << ttrsv << " (" << publicNumberOfRatedTtrsGamesPlayed << ")" << endl << endl;
-		cout << "Description: " << description  << endl << endl;
+		if (printDescription)
+		{
+			cout << "Description: " << description  << endl << endl;
+		}
 	}
+};
+
+class CAccountListElement
+{
+public:
+	CAccount * account;
+	
+	CAccountListElement * nextElement;
 };
 
 void commandTesting(int paramSocketFd)
@@ -184,6 +195,12 @@ void commandTesting(int paramSocketFd)
 	string * subsequence;
 	char compareCharArray[1000];
 	char cp[6];
+	
+	CAccount * account;
+	CAccountListElement * accountListStart = new CAccountListElement;
+	CAccountListElement * element;
+	
+	int numberOfAccounts;
 	
 	// Testing the Ping command (command-id = 00):
 	
@@ -285,7 +302,7 @@ void commandTesting(int paramSocketFd)
 		
 		lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 		
-		account->ttrsv.append(&receiveBuffer[5], lengthOfReceivedSequence - 6); 
+		account->ttrsv.append(&receiveBuffer[5], lengthOfReceivedSequence - 6);
 		
 		lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 		
@@ -296,21 +313,109 @@ void commandTesting(int paramSocketFd)
 			account->publicNumberOfRatedTtrsGamesPlayed = "> 20";
 		}
 		
-		account->print();
+		account->print(true);
+		
+		cout << "Info Requesting - Player Info seems to work." << endl << endl;
 		
 		delete account;
 	}
 	
-	for (i = 0; i < 3; i++)
+	// Testing the Info Requesting - Rating List command (command-id = 15):
+	
+	cout << "Testing the Info Requesting - Rating List command ..." << endl << endl;
+	
+	sendString = "003151";
+	strcpy(sendBuffer, sendString.c_str());
+	sendCommand(paramSocketFd, sendBuffer, 6);
+	
+	cout << "Info Requesting - Rating List command sent - waiting for server answer..." << endl << endl;
+	
+	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+	
+	receiveBuffer[lengthOfReceivedSequence] = '\0';
+	
+	printf("client: received '%s'\n\n", receiveBuffer);
+	
+	if (receiveBuffer[5] == 'f')
 	{
-		if ((lengthOfReceivedSequence = recv(paramSocketFd, receiveBuffer, 1000, 0)) == -1)
+		cout << "Received error signal from server: The rating value you specified might not be available." << endl << endl;
+	}
+	else
+	{
+		*subsequence = "";
+		subsequence->append(&receiveBuffer[6], lengthOfReceivedSequence - 5);
+		numberOfAccounts = atoi(subsequence->c_str());
+		
+		element = accountListStart;
+		
+		for (k = 0; k < numberOfAccounts; k++, element = element->nextElement)
 		{
-			perror("recv");
-			exit(1);
+			element->account = new CAccount;
+			
+			account = element->account;
+			
+			lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+			
+			*subsequence = "";
+			
+			i = 5;
+			
+			while ((*cp = receiveBuffer[i]) != '\0')
+			{
+				subsequence->append(cp, 1);
+				i++;
+			}
+			
+			account->firstName = *subsequence;
+			
+			i++;
+			
+			*subsequence = "";
+			
+			while ((*cp = receiveBuffer[i]) != '\0')
+			{
+				subsequence->append(cp, 1);
+				i++;
+			}
+			
+			account->secondName = *subsequence;
+			
+			i++;
+			
+			*subsequence = "";
+			
+			while ((*cp = receiveBuffer[i]) != '\0')
+			{
+				subsequence->append(cp, 1);
+				i++;
+			}
+			
+			account->thirdName = *subsequence;
+			
+			lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+			
+			*subsequence = "";
+			subsequence->append(&receiveBuffer[5], 4);
+			
+			account->ttrsv = *subsequence;
+			
+			lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+			
+			*subsequence = "";
+			subsequence->append(&receiveBuffer[5], 5);
+			
+			account->publicNumberOfRatedTtrsGamesPlayed = *subsequence;
+			
+			if (account->publicNumberOfRatedTtrsGamesPlayed.compare("-0001") == 0)
+			{
+				account->publicNumberOfRatedTtrsGamesPlayed = "> 20";
+			}
+			
+			element->nextElement = new CAccountListElement;
+			
+			account->print(false);
 		}
 		
-		receiveBuffer[lengthOfReceivedSequence] = '\0';
-		
-		printf("client: received '%s'\n\n",receiveBuffer);
+		cout << "Info Requesting - Player Info seems to work." << endl << endl;
 	}
 }

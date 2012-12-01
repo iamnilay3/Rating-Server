@@ -13,6 +13,8 @@
 #include <string>
 #include <cstdio>
 
+#include <sstream>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,6 +77,31 @@ void copyToBuffer(char * paramBuffer, string paramSendString, size_t paramSendSt
 	}
 }
 
+void bufferToLineArray(CCircularBuffer * circularBuffer, char * target, int length)
+{
+	int i,k;
+	
+	if (circularBuffer->dataStart + length > 2000)
+	{
+		for (i = circularBuffer->dataStart, k = 0; i < 2000; i++, k++)
+		{
+			target[k] = circularBuffer->content[i];
+		}
+		
+		for (i = 0; i < (circularBuffer->dataStart + length) % 2000; i++, k++)
+		{
+			target[k] = circularBuffer->content[i];
+		}
+	}
+	else
+	{
+		for (i = circularBuffer->dataStart, k = 0; i < circularBuffer->dataStart + length; i++, k++)
+		{
+			target[k] = circularBuffer->content[i];
+		}
+	}
+}
+
 void sendCommand(int paramSocketFd, const void *paramSendBuffer, size_t paramLength)
 {
 	if (send(paramSocketFd, paramSendBuffer, paramLength, 0) == -1)
@@ -101,7 +128,7 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 	
 	int yes=1;        // for setsockopt() SO_REUSEADDR, below
 	
-	CCircularBuffer * cicularBuffer;
+	CCircularBuffer * circularBuffer;
 	
 	struct addrinfo hints, *ai, *p;
 	
@@ -199,7 +226,7 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 						{    // keep track of the max
 							fdmax = newfd;
 						}
-						printf("selectserver: new connection from %s on socket %d\n", inet_ntop(remoteaddr.ss_family,
+						printf("Selectserver: New connection from %s on socket %d.\n\n", inet_ntop(remoteaddr.ss_family,
 							get_in_addr((struct sockaddr*)&remoteaddr), remoteIP, INET6_ADDRSTRLEN), newfd);
 						
 						socketBuffer[newfd].renew();	// Prepare the circular buffer!
@@ -214,7 +241,7 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 						if (nbytes == 0)
 						{
 							// connection closed
-							printf("selectserver: socket %d hung up\n", i);
+							printf("Selectserver: Socket %d hung up.\n\n", i);
 						}
 						else
 						{
@@ -227,79 +254,92 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 					{
 						// we got some data from a client
 						
-						cicularBuffer = &socketBuffer[i];
+						circularBuffer = &socketBuffer[i];
 						
 //nbytes -= 2; // Fix (Remove this line, when not testing with telnet!)
-						for (j = 0, k = cicularBuffer->nextInsert; j < nbytes; j++, k++)	// Copy into circular buffer!
+						for (j = 0, k = circularBuffer->nextInsert; j < nbytes; j++, k++)	// Copy into circular buffer!
 						{
-							cicularBuffer->content[k % 2000] = buf[j];
+							circularBuffer->content[k % 2000] = buf[j];
 						}
-						cicularBuffer->nextInsert = k % 2000;
+						circularBuffer->nextInsert = k % 2000;
 						
-cout << endl << "1) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
-print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
-cout << endl << "1) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
-cout << endl << "1) cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;
-						for (;;)
+/*cout << endl << "1) circularBuffer->dataStart = " << circularBuffer->dataStart << endl << endl;
+print_dec_byte_content(&circularBuffer->content[circularBuffer->dataStart], 10);
+cout << endl << "1) circularBuffer->dataStart = " << circularBuffer->dataStart << endl << endl;
+cout << endl << "1) circularBuffer->nextInsert = " << circularBuffer->nextInsert << endl << endl;
+*/						for (;;)
 						{
-							if (!cicularBuffer->restOfSequenceLengthDetermined)
+							if (!circularBuffer->restOfSequenceLengthDetermined)
 							{
-								if (cicularBuffer->dataLoad() >= 3)			// If enough data received,
+								if (circularBuffer->dataLoad() >= 3)			// If enough data received,
 								{							// get command rest length!
-									tempString[0] = cicularBuffer->content[cicularBuffer->dataStart];
-									tempString[1] = cicularBuffer->content[(cicularBuffer->dataStart + 1) % 2000];
-									tempString[2] = cicularBuffer->content[(cicularBuffer->dataStart + 2) % 2000];
+									tempString[0] = circularBuffer->content[circularBuffer->dataStart];
+									tempString[1] =
+									 circularBuffer->content[(circularBuffer->dataStart + 1) % 2000];
+									tempString[2] =
+									 circularBuffer->content[(circularBuffer->dataStart + 2) % 2000];
 									
-									cicularBuffer->dataStart = (cicularBuffer->dataStart + 3) % 2000;
+									circularBuffer->dataStart = (circularBuffer->dataStart + 3) % 2000;
 									
 									tempString[3] = '\0';
 									
-									cicularBuffer->restOfSequenceLength = atoi(tempString);
+									circularBuffer->restOfSequenceLength = atoi(tempString);
 									
-									cicularBuffer->restOfSequenceLengthDetermined = true;
+									if (circularBuffer->restOfSequenceLength > 997)	// Watch out!
+									{
+										circularBuffer->dataStart = circularBuffer->nextInsert;
+										
+										break;
+									}
+									
+									circularBuffer->restOfSequenceLengthDetermined = true;
 								}
 								else
 								{
 									break;
 								}
 							}
-/*print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
-cout << endl << "2) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
-cout << endl << "2) cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;
-cout << endl << "2) cicularBuffer->restOfSequenceLength = " << cicularBuffer->restOfSequenceLength << endl << endl;*/
+/*print_dec_byte_content(&circularBuffer->content[circularBuffer->dataStart], 10);
+cout << endl << "2) circularBuffer->dataStart = " << circularBuffer->dataStart << endl << endl;
+cout << endl << "2) circularBuffer->nextInsert = " << circularBuffer->nextInsert << endl << endl;
+cout << endl << "2) circularBuffer->restOfSequenceLength = " << circularBuffer->restOfSequenceLength << endl << endl;*/
 							
-							if (!cicularBuffer->commandTypeDetermined)
+							if (!circularBuffer->commandTypeDetermined)
 							{
-								if (cicularBuffer->dataLoad() >= 2)			// If enough data received,
+								if (circularBuffer->dataLoad() >= 2)			// If enough data received,
 								{							// get command type!
-									tempString[0] = cicularBuffer->content[cicularBuffer->dataStart];
-									tempString[1] = cicularBuffer->content[(cicularBuffer->dataStart + 1) % 2000];
+									tempString[0] = circularBuffer->content[circularBuffer->dataStart];
+									tempString[1] =
+									 circularBuffer->content[(circularBuffer->dataStart + 1) % 2000];
 									
-									cicularBuffer->dataStart = (cicularBuffer->dataStart + 2) % 2000;
+									circularBuffer->dataStart = (circularBuffer->dataStart + 2) % 2000;
 									
 									tempString[2] = '\0';
 									
-									cicularBuffer->commandType = atoi(tempString);
+									circularBuffer->commandType = atoi(tempString);
 									
-									cicularBuffer->commandTypeDetermined = true;
+									circularBuffer->commandTypeDetermined = true;
 								}
 								else
 								{
 									break;
 								}
 							}
-print_dec_byte_content(&cicularBuffer->content[cicularBuffer->dataStart], 10);
-cout << endl << "3) cicularBuffer->dataStart = " << cicularBuffer->dataStart << endl << endl;
-cout << endl << "3) cicularBuffer->nextInsert = " << cicularBuffer->nextInsert << endl << endl;
-cout << endl << "3) cicularBuffer->restOfSequenceLength = " << cicularBuffer->restOfSequenceLength << endl << endl;
-cout << endl << "3) cicularBuffer->commandType = " << cicularBuffer->commandType << endl << endl;
-cout << endl << "3) cicularBuffer->dataLoad() = " << cicularBuffer->dataLoad() << endl << endl;
+/*print_dec_byte_content(&circularBuffer->content[circularBuffer->dataStart], 10);
+cout << endl << "3) circularBuffer->dataStart = " << circularBuffer->dataStart << endl << endl;
+cout << endl << "3) circularBuffer->nextInsert = " << circularBuffer->nextInsert << endl << endl;
+cout << endl << "3) circularBuffer->restOfSequenceLength = " << circularBuffer->restOfSequenceLength << endl << endl;
+cout << endl << "3) circularBuffer->commandType = " << circularBuffer->commandType << endl << endl;
+cout << endl << "3) circularBuffer->dataLoad() = " << circularBuffer->dataLoad() << endl << endl;*/
 //cin >> k;
-							if (cicularBuffer->dataLoad() >= cicularBuffer->restOfSequenceLength - 2)
+							if (circularBuffer->dataLoad() >= circularBuffer->restOfSequenceLength - 2)
 							{
 							// If enough data received, get and handle command!
 								handleIncomingData(i);
 cout << "Handled incoming data! :)" << endl << endl;
+								
+								circularBuffer->restOfSequenceLengthDetermined = false;
+								circularBuffer->commandTypeDetermined = false;
 							}
 							else
 							{
@@ -326,15 +366,19 @@ void handleIncomingData(int paramSocketFd)
 	string sendString;
 	char sendBuffer[1000];
 	
+	char sequenceStore[1000];
 	string * subsequence;
 	string s;
+	char c;
 	char cp[6];
 	
 	CAccount * account;
+	CRatingListElement * element;
 	
 	switch (cid)
 	{
 		case 00:	// Ping
+
 			sendString = "00201";
 			strcpy(sendBuffer, sendString.c_str());
 			sendCommand(paramSocketFd, sendBuffer, 5);
@@ -342,10 +386,13 @@ void handleIncomingData(int paramSocketFd)
 			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 			
 			break;
+			
 		case 10:	// Info Requesting	- Player info
+
 			subsequence = new string();
 			
-			subsequence->append(&(circularBuffer->content[start]), rest);
+			bufferToLineArray(circularBuffer, sequenceStore, rest);
+			subsequence->append(sequenceStore, rest);
 			
 			account = getAccountFromName(*subsequence);
 			
@@ -360,6 +407,129 @@ void handleIncomingData(int paramSocketFd)
 				break;
 			}
 			
+			i = account->getDescription().length();
+			j = i / 995;
+			k = i % 995;
+			l = j + (k != 0);
+			
+			sendString = "???11s";
+			sendString.append(account->getFirstName());
+			sendString.append(1, '\0');
+			sendString.append(account->getSecondName());
+			sendString.append(1, '\0');
+			sendString.append(account->getThirdName());
+			sendString.append(1, '\0');
+			
+			sprintf(cp, "%d", l);
+			sendString.append(1, *cp);
+			
+			copyToBuffer(sendBuffer, sendString, sendString.length());
+			sprintf(sendBuffer, "%03d", sendString.length() - 3);
+			sendBuffer[3] = '1';
+			sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			
+			sendString = "";
+			
+			for (i = 0; i < j; i++)
+			{
+				sendString = "99712";
+				sendString.append(account->getDescription().substr(i * 995, 995));
+				
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			}
+			
+			sendString = "";
+			sprintf(cp, "%03d", 2 + k);
+			sendString.append(cp, 3);
+			sendString.append("12");
+			sendString.append(account->getDescription().substr(j * 995, k));
+			
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			
+			sendString = "00713";
+			sprintf(cp, "%04.0f", account->getTtrsv());
+			sendString.append(cp, 4);
+			sendString.append(1, '\0');
+			
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			
+			sendString = "00814";
+			sprintf(cp, "%05d", account->getPublicNrOfEvaluatedTtrsGames());
+			sendString.append(cp, 5);
+			sendString.append(1, '\0');
+			
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			
+			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+			
+			delete subsequence;
+			
+			break;
+			
+		case 15:	// Info Requesting 	- Rating List
+			
+			subsequence = new string();
+			
+			bufferToLineArray(circularBuffer, sequenceStore, rest);
+			subsequence->append(sequenceStore, rest);
+			
+			if (subsequence->compare("1") != 0)
+			{
+				sendString = "00316f";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, 6);
+				
+				circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+				
+				break;
+			}
+			
+			sendString = "???16s" + to_string(numberOfRegisteredAccounts);
+			copyToBuffer(sendBuffer, sendString, sendString.length());
+			sprintf(sendBuffer, "%03d", sendString.length() - 3);
+			sendBuffer[3] = '1';
+			sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			
+			element = ratingListStart->nextElement;
+			
+			while(element->rank != -1)
+			{
+				sendString = "???17";
+				sendString.append(element->account->getFirstName());
+				sendString.append(1, '\0');
+				sendString.append(element->account->getSecondName());
+				sendString.append(1, '\0');
+				sendString.append(element->account->getThirdName());
+				sendString.append(1, '\0');
+				
+				copyToBuffer(sendBuffer, sendString, sendString.length());
+				sprintf(sendBuffer, "%03d", sendString.length() - 3);
+				sendCommand(paramSocketFd, sendBuffer, sendString.length());
+				
+				sendString = "00718";
+				sprintf(cp, "%04.0f", element->account->getTtrsv());
+				sendString.append(cp, 4);
+				sendString.append(1, '\0');
+				
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, sendString.length());
+				
+				sendString = "00819";
+				sprintf(cp, "%05d", element->account->getPublicNrOfEvaluatedTtrsGames());
+				sendString.append(cp, 5);
+				sendString.append(1, '\0');
+				
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, sendString.length());
+				
+				element = element->nextElement;
+			}
+			
+/*			
 			i = account->getDescription().length();
 			j = i / 995;
 			k = i % 995;
@@ -415,13 +585,13 @@ void handleIncomingData(int paramSocketFd)
 			
 			strcpy(sendBuffer, sendString.c_str());
 			sendCommand(paramSocketFd, sendBuffer, sendString.length());
-			
+*/			
 			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 			
+			delete subsequence;
+			
 			break;
-/*		case 15:
-			break;
-		case 20:
+/*		case 20:
 			break;
 		case 22:
 			break;
@@ -463,7 +633,4 @@ void handleIncomingData(int paramSocketFd)
 			cout << "This command is not yet implemented." << endl << endl;
 			break;
 	}
-	
-	circularBuffer->restOfSequenceLengthDetermined = false;
-	circularBuffer->commandTypeDetermined = false;
 }

@@ -115,4 +115,13 @@ void printRatingList();
 int loadFromFile(const char * paramPathToFileToLoadFrom);
 int saveToFile(const char * paramPathToFileToSaveTo);
 
+extern int numberOfRegisteredAccounts;
+extern int idOfLastRegisteredAccount;
+
+extern CAccountListElement * accountListStart;
+extern CAccountListElement * accountListEnd;
+
+extern CRatingListElement * ratingListStart;
+extern CRatingListElement * ratingListEnd;
+
 #endif
