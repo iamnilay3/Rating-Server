@@ -62,7 +62,7 @@ The following communication PROTOCOL is used:
 		
 		sequence-length:command-id:data-subsequence,
 		
-		where sequence-length is the length in bytes of the rest of the sequence being sent (at most '100') represented by 3 chars,
+		where sequence-length is the length in bytes of the rest of the sequence being sent (at most '997') represented by 3 chars,
 		command-id is the two chars {'1', '0'} (this number 10 is reserved for the registration-command) and
 		data-subsequence is the concatenation of a null-terminated char sequence representing the first nickname of the account
 		 and a null-terminated char sequence representing the account password.
@@ -150,6 +150,12 @@ The following communication PROTOCOL is used:
 		28:Nickname'\0'OldPassword'\0'NewPassword'0'
 		|					CL --> RS		Change password
 		29:{s,f}ErrorMessage			RS --> CL		Result (Is always being send after at least
+		|								5 seconds delay - even at success!)
+		
+		Account Modification 	- Deletion
+		
+		30:Nickname'\0'Password'\0'		CL --> RS		Delete account
+		31:{s,f}ErrorMessage			RS --> CL		Result (Is always being send after at least
 		|								5 seconds delay - even at success!)
 		
 		

@@ -13,8 +13,6 @@
 #include <string>
 #include <cstdio>
 
-#include <sstream>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,8 +56,7 @@ void print_dec_byte_content(char * pointer, int length)
 	}
 }
 
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
+void *get_in_addr(struct sockaddr *sa)	// get sockaddr, IPv4 or IPv6:
 {
 	if (sa->sa_family == AF_INET)
 	{
@@ -137,7 +134,9 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 	int i, k, j, rv;
 	
 	char tempString[4];
-
+	
+	cout << "Listening for connections ..." << endl << endl;
+	
 	FD_ZERO(&master);    // clear the master and temp sets
 	FD_ZERO(&read_fds);
 	
@@ -336,7 +335,6 @@ cout << endl << "3) circularBuffer->dataLoad() = " << circularBuffer->dataLoad()
 							{
 							// If enough data received, get and handle command!
 								handleIncomingData(i);
-cout << "Handled incoming data! :)" << endl << endl;
 								
 								circularBuffer->restOfSequenceLengthDetermined = false;
 								circularBuffer->commandTypeDetermined = false;
@@ -375,20 +373,25 @@ void handleIncomingData(int paramSocketFd)
 	CAccount * account;
 	CRatingListElement * element;
 	
+	string nickname;
+	string password;
+	
 	switch (cid)
 	{
 		case 00:	// Ping
-
+			
 			sendString = "00201";
 			strcpy(sendBuffer, sendString.c_str());
 			sendCommand(paramSocketFd, sendBuffer, 5);
 			
 			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 			
+			cout << "Handled command: Ping" << endl << endl;
+			
 			break;
 			
-		case 10:	// Info Requesting	- Player info
-
+		case 10:	// Info Requesting - Player Info
+			
 			subsequence = new string();
 			
 			bufferToLineArray(circularBuffer, sequenceStore, rest);
@@ -464,13 +467,15 @@ void handleIncomingData(int paramSocketFd)
 			strcpy(sendBuffer, sendString.c_str());
 			sendCommand(paramSocketFd, sendBuffer, sendString.length());
 			
+			delete subsequence;
+			
 			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 			
-			delete subsequence;
+			cout << "Handled command: Info Requesting - Player Info" << endl << endl;
 			
 			break;
 			
-		case 15:	// Info Requesting 	- Rating List
+		case 15:	// Info Requesting - Rating List
 			
 			subsequence = new string();
 			
@@ -529,77 +534,65 @@ void handleIncomingData(int paramSocketFd)
 				element = element->nextElement;
 			}
 			
-/*			
-			i = account->getDescription().length();
-			j = i / 995;
-			k = i % 995;
-			l = j + (k != 0);
-			
-			sendString = "???11s";
-			sendString.append(account->getFirstName());
-			sendString.append(1, '\0');
-			sendString.append(account->getSecondName());
-			sendString.append(1, '\0');
-			sendString.append(account->getThirdName());
-			sendString.append(1, '\0');
-			
-			sprintf(cp, "%d", l);
-			sendString.append(1, *cp);
-			
-			copyToBuffer(sendBuffer, sendString, sendString.length());
-			sprintf(sendBuffer, "%03d", sendString.length());
-			sendCommand(paramSocketFd, sendBuffer, sendString.length());
-			
-			sendString = "";
-			
-			for (i = 0; i < j; i++)
-			{
-				sendString = "99712";
-				sendString.append(account->getDescription().substr(i * 995, 995));
-				
-				strcpy(sendBuffer, sendString.c_str());
-				sendCommand(paramSocketFd, sendBuffer, sendString.length());
-			}
-			
-			sendString = "";
-			sprintf(cp, "%03d", 2 + k);
-			sendString.append(cp, 3);
-			sendString.append("12");
-			sendString.append(account->getDescription().substr(j * 995, k));
-			
-			strcpy(sendBuffer, sendString.c_str());
-			sendCommand(paramSocketFd, sendBuffer, sendString.length());
-			
-			sendString = "00713";
-			sprintf(cp, "%04.0f", account->getTtrsv());
-			sendString.append(cp, 4);
-			sendString.append(1, '\0');
-			
-			strcpy(sendBuffer, sendString.c_str());
-			sendCommand(paramSocketFd, sendBuffer, sendString.length());
-			
-			sendString = "00814";
-			sprintf(cp, "%05d", account->getPublicNrOfEvaluatedTtrsGames());
-			sendString.append(cp, 5);
-			sendString.append(1, '\0');
-			
-			strcpy(sendBuffer, sendString.c_str());
-			sendCommand(paramSocketFd, sendBuffer, sendString.length());
-*/			
-			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
-			
 			delete subsequence;
 			
+			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+			
+			cout << "Handled command: Info Requesting - Rating List" << endl << endl;
+			
 			break;
-/*		case 20:
+			
+		case 20:	// Account Modification - Registration
+			
+			bufferToLineArray(circularBuffer, sequenceStore, rest);
+			
+			nickname = "";
+			
+			i = 0;
+			
+			while ((*cp = sequenceStore[i]) != '\0')
+			{
+				nickname.append(cp, 1);
+				i++;
+			}
+			
+			password = "";
+			
+			i++;
+			
+			while ((*cp = sequenceStore[i]) != '\0')
+			{
+				password.append(cp, 1);
+				i++;
+			}
+			
+			if (addAccount(idOfLastRegisteredAccount + 1, nickname, "", "", false, "", password, true) == 0)
+			{
+				sendString = "05721fCould not create account. This name is already in use.";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, 60);
+			}
+			else
+			{
+				sendString = "00321s";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, 6);
+			}
+			
+			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+			
+			cout << "Handled command: Account Modification - Registration" << endl << endl;
+			
 			break;
-		case 22:
+/*		case 22:
 			break;
 		case 25:
 			break;
 		case 26:
 			break;
 		case 28:
+			break;
+		case 30:
 			break;
 		case 50:
 			break;
@@ -631,6 +624,9 @@ void handleIncomingData(int paramSocketFd)
 			break;
 */		default:
 			cout << "This command is not yet implemented." << endl << endl;
+			
+			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+			
 			break;
 	}
 }

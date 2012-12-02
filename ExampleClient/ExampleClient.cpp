@@ -139,6 +139,14 @@ int fetchSequence(int paramSocketFd, char * receiveBuffer)
 	return (restOfSequenceLength + 3);
 }
 
+void copyToBuffer(char * paramBuffer, string paramSendString, size_t paramSendStringLength)
+{
+	for (int i = 0; i < paramSendStringLength; i++)
+	{
+		paramBuffer[i] = paramSendString.at(i);
+	}
+}
+
 class CAccount
 {
 public:
@@ -201,6 +209,9 @@ void commandTesting(int paramSocketFd)
 	CAccountListElement * element;
 	
 	int numberOfAccounts;
+	
+	string nickname;
+	string password;
 	
 	// Testing the Ping command (command-id = 00):
 	
@@ -416,6 +427,33 @@ void commandTesting(int paramSocketFd)
 			account->print(false);
 		}
 		
-		cout << "Info Requesting - Player Info seems to work." << endl << endl;
+		cout << "Info Requesting - Rating List seems to work." << endl << endl;
 	}
+	
+	// Testing the Account Modification - Registration command (command-id = 20):
+	
+	cout << "Testing the Account Modification - Registration command ..." << endl << endl;
+	
+	nickname = "Claudio Arrau";
+	password = "$money100$!";
+	
+	sendString = "???20";
+	sendString.append(nickname);
+	sendString.append(1, '\0');
+	sendString.append(password);
+	sendString.append(1, '\0');
+	copyToBuffer(sendBuffer, sendString, sendString.length());
+	sprintf(sendBuffer, "%03d", sendString.length() - 3);
+	sendBuffer[3] = '2';
+	sendCommand(paramSocketFd, sendBuffer, sendString.length());
+	
+	cout << "Account Modification - Registration command sent - waiting for server answer..." << endl << endl;
+	
+	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+	
+	receiveBuffer[lengthOfReceivedSequence] = '\0';
+	
+	printf("client: received '%s'\n\n", receiveBuffer);
+	
+// 	cout << "Account Modification - Registration seems to work." << endl << endl;
 }

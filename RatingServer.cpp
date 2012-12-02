@@ -76,7 +76,7 @@ int main(int argc, char * argv[])
 */
 	
 	printRatingList();
-	printAccountList();
+//	printAccountList();
 	
 	setupConnectionsAndManageCommunications(argv[3], argv[4]);
 	
