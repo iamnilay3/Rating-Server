@@ -26,6 +26,7 @@
 #include "RatingServer.h"
 #include "Network.h"
 #include "Games.h"
+#include "Schedule.h"
 
 using namespace std;
 
@@ -52,7 +53,7 @@ void print_dec_byte_content(char * pointer, int length)
 	
 	for (i = 0; i < length; i++)
 	{
-		printf("\nDecimal (unsigned int) content of pointer[%d] is %d\n", i, (unsigned int) pointer[i]);
+		printf("Decimal (unsigned int) content of pointer[%d] is %d (%c).\n\n", i, pointer[i], pointer[i]);
 	}
 }
 
@@ -197,11 +198,13 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 	for(;;)
 	{
 		read_fds = master; // copy it
-		if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1)
+		if (select(fdmax+1, &read_fds, NULL, NULL, schedule.timeToNextTask()) == -1)
 		{
 			perror("select");
 			exit(4);
 		}
+		
+		schedule.checkForTasksToExecute();
 		
 		// run through the existing connections looking for data to read
 		for(i = 0; i <= fdmax; i++)
@@ -375,14 +378,25 @@ void handleIncomingData(int paramSocketFd)
 	
 	string nickname;
 	string password;
+	string firstName, secondName, thirdName;
+	bool privateNrOfEvaluatedTtrsGames;
+	int nrOfExpectedDescriptionLines;
+	
+	int id;
+	
+	CModificationInformation * modificationInformation;
 	
 	switch (cid)
 	{
 		case 00:	// Ping
 			
+			// Protocol Receive-Syntax:	00
+			
 			sendString = "00201";
 			strcpy(sendBuffer, sendString.c_str());
 			sendCommand(paramSocketFd, sendBuffer, 5);
+			
+			// Protocol Send-Syntax: 	01
 			
 			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 			
@@ -391,6 +405,8 @@ void handleIncomingData(int paramSocketFd)
 			break;
 			
 		case 10:	// Info Requesting - Player Info
+			
+			// Protocol Receive-Syntax:	10:Nickname
 			
 			subsequence = new string();
 			
@@ -423,6 +439,8 @@ void handleIncomingData(int paramSocketFd)
 			sendString.append(account->getThirdName());
 			sendString.append(1, '\0');
 			
+			sendString.append(account->getPrivateNrOfEvaluatedTtrsGames() ? "t" : "f");
+			
 			sprintf(cp, "%d", l);
 			sendString.append(1, *cp);
 			
@@ -430,6 +448,9 @@ void handleIncomingData(int paramSocketFd)
 			sprintf(sendBuffer, "%03d", sendString.length() - 3);
 			sendBuffer[3] = '1';
 			sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			
+			// Protocol Send-Syntax: 
+			//	11:{s,f}FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow{t,f}
 			
 			sendString = "";
 			
@@ -451,6 +472,8 @@ void handleIncomingData(int paramSocketFd)
 			strcpy(sendBuffer, sendString.c_str());
 			sendCommand(paramSocketFd, sendBuffer, sendString.length());
 			
+			// Protocol Send-Syntax:	12:DescriptionLine_i
+			
 			sendString = "00713";
 			sprintf(cp, "%04.0f", account->getTtrsv());
 			sendString.append(cp, 4);
@@ -459,6 +482,8 @@ void handleIncomingData(int paramSocketFd)
 			strcpy(sendBuffer, sendString.c_str());
 			sendCommand(paramSocketFd, sendBuffer, sendString.length());
 			
+			// Protocol Send-Syntax:	13:RatingValue1'\0'RatingValue2'\0'...RatingValue_m'\0'
+			
 			sendString = "00814";
 			sprintf(cp, "%05d", account->getPublicNrOfEvaluatedTtrsGames());
 			sendString.append(cp, 5);
@@ -466,6 +491,8 @@ void handleIncomingData(int paramSocketFd)
 			
 			strcpy(sendBuffer, sendString.c_str());
 			sendCommand(paramSocketFd, sendBuffer, sendString.length());
+			
+			// Protocol Send-Syntax:	14:PlayedGames1'\0'PlayedGames2'\0'...PlayedGames_m'\0'
 			
 			delete subsequence;
 			
@@ -476,6 +503,8 @@ void handleIncomingData(int paramSocketFd)
 			break;
 			
 		case 15:	// Info Requesting - Rating List
+			
+			// Protocol Receive-Syntax:	15:RatingValueNr
 			
 			subsequence = new string();
 			
@@ -499,6 +528,8 @@ void handleIncomingData(int paramSocketFd)
 			sendBuffer[3] = '1';
 			sendCommand(paramSocketFd, sendBuffer, sendString.length());
 			
+			// Protocol Send-Syntax:	16:{s,f}NrOfAccountsInListThatWillFollow
+			
 			element = ratingListStart->nextElement;
 			
 			while(element->rank != -1)
@@ -515,6 +546,8 @@ void handleIncomingData(int paramSocketFd)
 				sprintf(sendBuffer, "%03d", sendString.length() - 3);
 				sendCommand(paramSocketFd, sendBuffer, sendString.length());
 				
+				// Protocol Send-Syntax:	17:FirstName'\0'SecondName'\0'ThirdName'\0'
+				
 				sendString = "00718";
 				sprintf(cp, "%04.0f", element->account->getTtrsv());
 				sendString.append(cp, 4);
@@ -523,6 +556,8 @@ void handleIncomingData(int paramSocketFd)
 				strcpy(sendBuffer, sendString.c_str());
 				sendCommand(paramSocketFd, sendBuffer, sendString.length());
 				
+				// Protocol Send-Syntax:	18:RatingValue1'\0'RatingValue2'\0'...RatingValue_m'\0'
+				
 				sendString = "00819";
 				sprintf(cp, "%05d", element->account->getPublicNrOfEvaluatedTtrsGames());
 				sendString.append(cp, 5);
@@ -530,6 +565,8 @@ void handleIncomingData(int paramSocketFd)
 				
 				strcpy(sendBuffer, sendString.c_str());
 				sendCommand(paramSocketFd, sendBuffer, sendString.length());
+				
+				// Protocol Send-Syntax:	19:PlayedGames1'\0'PlayedGames2'\0'...PlayedGames_m'\0'
 				
 				element = element->nextElement;
 			}
@@ -543,6 +580,8 @@ void handleIncomingData(int paramSocketFd)
 			break;
 			
 		case 20:	// Account Modification - Registration
+			
+			// Protocol Receive-Syntax:	20:Nickname'\0'Password'\0'
 			
 			bufferToLineArray(circularBuffer, sequenceStore, rest);
 			
@@ -579,16 +618,105 @@ void handleIncomingData(int paramSocketFd)
 				sendCommand(paramSocketFd, sendBuffer, 6);
 			}
 			
+			// Protocol Send-Syntax:	21:{s,f}ErrorMessage
+			
 			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 			
 			cout << "Handled command: Account Modification - Registration" << endl << endl;
 			
 			break;
-/*		case 22:
+			
+		case 22:	// Account Modification - Account Details Modification 1
+			
+			// Protocol Receive-Syntax:
+			//	22:OldNickname'\0'Password'\0'FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow
+			
+			bufferToLineArray(circularBuffer, sequenceStore, rest);
+			
+print_dec_byte_content(sequenceStore, rest);
+			
+			nickname = "";
+			
+			i = 0;
+			
+			while ((*cp = sequenceStore[i]) != '\0')
+			{
+				nickname.append(cp, 1);
+				i++;
+			}
+			
+			id = getIdFromName(nickname);
+			
+			if (id < 0)
+			{
+				sendString = "05024fThere is no account with that name you entered.";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, 53);
+				
+				circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+				
+				break;
+			}
+			
+// Here implement a check, if there is already a ModificationInformation object with this id or socketFd! If so, send back error message!
+			
+			password = "";
+			
+			i++;
+			
+			while ((*cp = sequenceStore[i]) != '\0')
+			{
+				password.append(cp, 1);
+				i++;
+			}
+			
+			firstName = "";
+			
+			i++;
+			
+			while ((*cp = sequenceStore[i]) != '\0')
+			{
+				firstName.append(cp, 1);
+				i++;
+			}
+			
+			secondName = "";
+			
+			i++;
+			
+			while ((*cp = sequenceStore[i]) != '\0')
+			{
+				secondName.append(cp, 1);
+				i++;
+			}
+			
+			thirdName = "";
+			
+			i++;
+			
+			while ((*cp = sequenceStore[i]) != '\0')
+			{
+				thirdName.append(cp, 1);
+				i++;
+			}
+			
+			privateNrOfEvaluatedTtrsGames = (sequenceStore[++i] == 't') ? true : false;
+			nrOfExpectedDescriptionLines = ((int) sequenceStore[++i]) - 48;
+			
+			account = getAccountFromId(id);
+			
+			modificationInformation =
+				new CModificationInformation(paramSocketFd, id, nrOfExpectedDescriptionLines, password,
+					account->passwordMatches(password), firstName, secondName, thirdName, privateNrOfEvaluatedTtrsGames);
+			
+			schedule.addTask(5, paramSocketFd, 1, id, modificationInformation, "", "", "");
+			
+			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+			
+			cout << "Handled command: Account Modification - Account Details Modification 1" << endl << endl;
+			
 			break;
-		case 25:
-			break;
-		case 26:
+/*		case 23:
 			break;
 		case 28:
 			break;

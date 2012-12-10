@@ -156,6 +156,8 @@ public:
 	
 	string publicNumberOfRatedTtrsGamesPlayed;
 	
+	string privateNrOfEvaluatedTtrsGames;
+	
 	string description;
 	
 	CAccount()
@@ -169,13 +171,17 @@ public:
 		ttrsv = paramTtrsv; publicNumberOfRatedTtrsGamesPlayed = paramPublicNumberOfRatedTtrsGamesPlayed; description = paramDescription;
 	}
 	
-	void print(bool printDescription)
+	void print(bool paramPrintDescription, bool paramPrintPrivateNrOfEvaluatedTtrsGames)
 	{
 		cout << "First Name: " << firstName << "   Second Name: " << secondName << "   Third Name: " << thirdName << endl << endl;
 		cout << "Ttrsv: " << ttrsv << " (" << publicNumberOfRatedTtrsGamesPlayed << ")" << endl << endl;
-		if (printDescription)
+		if (paramPrintDescription)
 		{
 			cout << "Description: " << description  << endl << endl;
+		}
+		if (paramPrintPrivateNrOfEvaluatedTtrsGames)
+		{
+			cout << "Private Number Of Rated Ttrs Games Played: " << privateNrOfEvaluatedTtrsGames  << endl << endl;
 		}
 	}
 };
@@ -298,6 +304,8 @@ void commandTesting(int paramSocketFd)
 		
 		account->thirdName = *subsequence;
 		
+		account->privateNrOfEvaluatedTtrsGames = (receiveBuffer[++i] == 't') ? "true" : "false";
+		
 		j = ((int) receiveBuffer[++i]) - 48;
 		
 		for (i = 0; i < j - 1; i++)
@@ -324,7 +332,7 @@ void commandTesting(int paramSocketFd)
 			account->publicNumberOfRatedTtrsGamesPlayed = "> 20";
 		}
 		
-		account->print(true);
+		account->print(true, true);
 		
 		cout << "Info Requesting - Player Info seems to work." << endl << endl;
 		
@@ -424,7 +432,7 @@ void commandTesting(int paramSocketFd)
 			
 			element->nextElement = new CAccountListElement;
 			
-			account->print(false);
+			account->print(false, false);
 		}
 		
 		cout << "Info Requesting - Rating List seems to work." << endl << endl;
@@ -455,5 +463,43 @@ void commandTesting(int paramSocketFd)
 	
 	printf("client: received '%s'\n\n", receiveBuffer);
 	
-// 	cout << "Account Modification - Registration seems to work." << endl << endl;
+	cout << "Account Modification - Registration seems to work." << endl << endl;
+	
+	// Testing the Account Modification - Account Details Modification command (command-id = 22):
+	
+	cout << "Testing the Account Modification - Account Details Modification command ..." << endl << endl;
+	
+	nickname = "Claudio Arrau";
+	password = "$money100$!";
+	
+	// 22:OldNickname'\0'Password'\0'FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow
+	
+	sendString = "???22";
+	sendString.append(nickname);
+	sendString.append(1, '\0');
+	sendString.append(password);
+	sendString.append(1, '\0');
+	sendString.append("Sebastian Vettel");
+	sendString.append(1, '\0');
+	sendString.append("Magnus Carlsen");
+	sendString.append(1, '\0');
+	sendString.append("David Hilbert");
+	sendString.append(1, '\0');
+	sendString.append("t");
+	sendString.append("3");
+	
+	copyToBuffer(sendBuffer, sendString, sendString.length());
+	sprintf(sendBuffer, "%03d", sendString.length() - 3);
+	sendBuffer[3] = '2';
+	sendCommand(paramSocketFd, sendBuffer, sendString.length());
+	
+	cout << "Account Modification - Account Details Modification command 1 (22) sent - waiting for server answer..." << endl << endl;
+	
+	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+	
+	receiveBuffer[lengthOfReceivedSequence] = '\0';
+	
+	printf("client: received '%s'\n\n", receiveBuffer);
+	
+//	cout << "Account Modification - Account Details Modification seems to work." << endl << endl;
 }

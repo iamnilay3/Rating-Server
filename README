@@ -18,7 +18,7 @@ COMPILE:
 
 Just use g++ or another c++ compiler and compile the source code accordingly:
 
-g++ -std=c++11 RatingServer.cpp Network.cpp Games.cpp -o RatingServer
+g++ -std=c++11 RatingServer.cpp Network.cpp Games.cpp Schedule.cpp -o RatingServer
 
 To compile the simple example client change to the ExampleClient subfolder and run accordingly:
 
@@ -95,9 +95,10 @@ The following communication PROTOCOL is used:
 		
 		Info Requesting		- Player Info
 		
-		10:Nickname				CL --> RS		Request player info
-		11:{s,f}FirstName'\0'SecondName'\0'ThirdName'\0'NrOfDescriptionCommandsThatWillFollow
+		10:Nickname				CL --> RS		Request player info (Nickname is any of the 3)
+		11:{s,f}FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow{t,f}
 		|					RS --> CL		Player info answer [1]
+		|								{t,f} denotes the boolean privateNrOfEvaluatedGames
 		|								(NrOfDescriptionCommandsThatWillFollow must be
 		|								less or equal 5)
 		12:DescriptionLine_i			RS --> CL		Player info answer [2 to (n+1)]
@@ -130,20 +131,16 @@ The following communication PROTOCOL is used:
 		20:Nickname'\0'Password'\0'		CL --> RS		Register new (basic) account
 		21:{s,f}ErrorMessage			RS --> CL		Result
 		
-		Account Modification	- Account Destails Modification
+		Account Modification	- Account Details Modification
 		
-		22:Nickname'\0'Password'\0'		CL --> RS		Account modification [1] (Nickname is any of the 3)
-		23:{s,f}FirstName'\0'SecondName'\0'ThirdName'\0'NrOfDescriptionCommandsThatWillFollow
-		|					RS --> CL		Account modification answer [1]
+		22:OldNickname'\0'Password'\0'FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow
+		|					CL --> RS		Account modification [1]
+		|								{t,f} denotes the boolean privateNrOfEvaluatedGames
 		|								(NrOfDescriptionCommandsThatWillFollow must be
 		|								less or equal 5)
-		24:DescriptionLine_n			RS --> CL		Account modification answer [2 to (n+1)]
-		25:FirstName'\0'SecondName'\0'ThirdName'\0'NrOfDescriptionCommandsThatWillFollow
-		|					CL --> RS		Account modification [2]
-		|								(NrOfDescriptionCommandsThatWillFollow must be
-		|								less or equal 5)
-		26:DescriptionLine_n			CL --> RS		Account modification [3]
-		27:{s,f}ErrorMessage'\0'		RS --> CL		Account modification answer [3]
+		23:OldNickname'\0'Password'\0'DescriptionLine_n
+		|					CL --> RS		Account modification [2 to (n+1)]
+		24:{s,f}ErrorMessage'\0'		RS --> CL		Account modification answer [1]
 		
 		Account Modification	- Password Modification
 		
@@ -154,7 +151,7 @@ The following communication PROTOCOL is used:
 		
 		Account Modification 	- Deletion
 		
-		30:Nickname'\0'Password'\0'		CL --> RS		Delete account
+		30:Nickname'\0'Password'\0'		CL --> RS		Delete account (Nickname is any of the 3)
 		31:{s,f}ErrorMessage			RS --> CL		Result (Is always being send after at least
 		|								5 seconds delay - even at success!)
 		

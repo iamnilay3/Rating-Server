@@ -354,6 +354,18 @@ int getIdFromName(string paramName)
 	return (element->id);
 }
 
+CAccount * getAccountFromId(int paramId)
+{
+	CAccountListElement * element = accountListStart;
+	
+	while((element->id == -2) || ((element->id != -1) && (element->id != paramId)))
+	{
+		element = element->nextElement;
+	}
+	
+	return (element->account);
+}
+
 CAccount * getAccountFromName(string paramName)
 {
 	if (paramName == "") return 0;
