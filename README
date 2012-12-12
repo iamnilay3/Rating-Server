@@ -138,9 +138,8 @@ The following communication PROTOCOL is used:
 		|								{t,f} denotes the boolean privateNrOfEvaluatedGames
 		|								(NrOfDescriptionCommandsThatWillFollow must be
 		|								less or equal 5)
-		23:OldNickname'\0'Password'\0'DescriptionLine_n
-		|					CL --> RS		Account modification [2 to (n+1)]
-		24:{s,f}ErrorMessage'\0'		RS --> CL		Account modification answer [1]
+		23:DescriptionLine_n			CL --> RS		Account modification [2 to (n+1)]
+		24:{s,f}ErrorMessage			RS --> CL		Account modification answer [1]
 		
 		Account Modification	- Password Modification
 		

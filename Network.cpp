@@ -44,7 +44,14 @@ void CCircularBuffer::renew()
 
 int CCircularBuffer::dataLoad()
 {
-	return ((nextInsert - dataStart) % 2000);
+	int result = ((nextInsert - dataStart) % 2000);
+	
+	if (result < 0)
+	{
+		result += 2000;
+	}
+	
+	return result;
 }
 
 void print_dec_byte_content(char * pointer, int length)
@@ -119,12 +126,14 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 	struct sockaddr_storage remoteaddr; // client address
 	socklen_t addrlen;
 	
-	char buf[1001];    // buffer for client data
+	char buf[1000];    // buffer for client data
 	int nbytes;
 	
 	char remoteIP[INET6_ADDRSTRLEN];
 	
 	int yes=1;        // for setsockopt() SO_REUSEADDR, below
+	
+	timeval timeToNextTask;
 	
 	CCircularBuffer * circularBuffer;
 	
@@ -198,7 +207,8 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 	for(;;)
 	{
 		read_fds = master; // copy it
-		if (select(fdmax+1, &read_fds, NULL, NULL, schedule.timeToNextTask()) == -1)
+		
+		if (select(fdmax+1, &read_fds, NULL, NULL, schedule.timeToNextTask(&timeToNextTask)) == -1)
 		{
 			perror("select");
 			exit(4);
@@ -258,18 +268,13 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 						
 						circularBuffer = &socketBuffer[i];
 						
-//nbytes -= 2; // Fix (Remove this line, when not testing with telnet!)
 						for (j = 0, k = circularBuffer->nextInsert; j < nbytes; j++, k++)	// Copy into circular buffer!
 						{
 							circularBuffer->content[k % 2000] = buf[j];
 						}
 						circularBuffer->nextInsert = k % 2000;
 						
-/*cout << endl << "1) circularBuffer->dataStart = " << circularBuffer->dataStart << endl << endl;
-print_dec_byte_content(&circularBuffer->content[circularBuffer->dataStart], 10);
-cout << endl << "1) circularBuffer->dataStart = " << circularBuffer->dataStart << endl << endl;
-cout << endl << "1) circularBuffer->nextInsert = " << circularBuffer->nextInsert << endl << endl;
-*/						for (;;)
+						for (;;)
 						{
 							if (!circularBuffer->restOfSequenceLengthDetermined)
 							{
@@ -301,10 +306,6 @@ cout << endl << "1) circularBuffer->nextInsert = " << circularBuffer->nextInsert
 									break;
 								}
 							}
-/*print_dec_byte_content(&circularBuffer->content[circularBuffer->dataStart], 10);
-cout << endl << "2) circularBuffer->dataStart = " << circularBuffer->dataStart << endl << endl;
-cout << endl << "2) circularBuffer->nextInsert = " << circularBuffer->nextInsert << endl << endl;
-cout << endl << "2) circularBuffer->restOfSequenceLength = " << circularBuffer->restOfSequenceLength << endl << endl;*/
 							
 							if (!circularBuffer->commandTypeDetermined)
 							{
@@ -327,13 +328,7 @@ cout << endl << "2) circularBuffer->restOfSequenceLength = " << circularBuffer->
 									break;
 								}
 							}
-/*print_dec_byte_content(&circularBuffer->content[circularBuffer->dataStart], 10);
-cout << endl << "3) circularBuffer->dataStart = " << circularBuffer->dataStart << endl << endl;
-cout << endl << "3) circularBuffer->nextInsert = " << circularBuffer->nextInsert << endl << endl;
-cout << endl << "3) circularBuffer->restOfSequenceLength = " << circularBuffer->restOfSequenceLength << endl << endl;
-cout << endl << "3) circularBuffer->commandType = " << circularBuffer->commandType << endl << endl;
-cout << endl << "3) circularBuffer->dataLoad() = " << circularBuffer->dataLoad() << endl << endl;*/
-//cin >> k;
+
 							if (circularBuffer->dataLoad() >= circularBuffer->restOfSequenceLength - 2)
 							{
 							// If enough data received, get and handle command!
@@ -384,6 +379,7 @@ void handleIncomingData(int paramSocketFd)
 	
 	int id;
 	
+	CTask * task;
 	CModificationInformation * modificationInformation;
 	
 	switch (cid)
@@ -633,8 +629,6 @@ void handleIncomingData(int paramSocketFd)
 			
 			bufferToLineArray(circularBuffer, sequenceStore, rest);
 			
-print_dec_byte_content(sequenceStore, rest);
-			
 			nickname = "";
 			
 			i = 0;
@@ -658,7 +652,28 @@ print_dec_byte_content(sequenceStore, rest);
 				break;
 			}
 			
-// Here implement a check, if there is already a ModificationInformation object with this id or socketFd! If so, send back error message!
+			task = schedule.firstTask;
+			
+			while (task != 0)
+			{
+				if ((task->socketFd == paramSocketFd) || (task->id == id))
+				{
+					sendString = "03324fAnother change is in progress.";
+					strcpy(sendBuffer, sendString.c_str());
+					sendCommand(paramSocketFd, sendBuffer, 53);
+					
+					circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+					
+					break;
+				}
+				
+				task = task->nextTask;
+			}
+			
+			if ((task != 0) && (task->socketFd == paramSocketFd) && (task->type == 1))
+			{
+				break;
+			}
 			
 			password = "";
 			
@@ -706,7 +721,7 @@ print_dec_byte_content(sequenceStore, rest);
 			account = getAccountFromId(id);
 			
 			modificationInformation =
-				new CModificationInformation(paramSocketFd, id, nrOfExpectedDescriptionLines, password,
+				new CModificationInformation(paramSocketFd, id, nrOfExpectedDescriptionLines,
 					account->passwordMatches(password), firstName, secondName, thirdName, privateNrOfEvaluatedTtrsGames);
 			
 			schedule.addTask(5, paramSocketFd, 1, id, modificationInformation, "", "", "");
@@ -716,9 +731,54 @@ print_dec_byte_content(sequenceStore, rest);
 			cout << "Handled command: Account Modification - Account Details Modification 1" << endl << endl;
 			
 			break;
-/*		case 23:
+			
+		case 23:	// Account Modification - Account Details Modification 2
+			
+			// Protocol Receive-Syntax:	23:DescriptionLine_n
+			
+			bufferToLineArray(circularBuffer, sequenceStore, rest);
+			
+			task = schedule.firstTask;
+			
+			while (task != 0)
+			{
+				if ((task->socketFd == paramSocketFd) && (task->type == 1))
+				{
+					break;
+				}
+				
+				task = task->nextTask;
+			}
+			
+			if (!((task != 0) && (task->socketFd == paramSocketFd) && (task->type == 1)))
+			{
+				circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+				
+				cout << "Rejecting unexpected command: Account Modification - Account Details Modification 2" << endl << endl;
+				
+				break;
+			}
+			
+			modificationInformation = task->modificationInformation;
+			
+			modificationInformation->description.append(sequenceStore, rest);
+			modificationInformation->nrOfReceivedDescriptionLines += 1;
+			
+			if (modificationInformation->nrOfExpectedDescriptionLines == modificationInformation->nrOfReceivedDescriptionLines)
+			{
+				sendString = "00324s";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, 53);
+				
+				// Protocol Send-Syntax:	24:{s,f}ErrorMessage
+			}
+			
+			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+			
+			cout << "Handled command: Account Modification - Account Details Modification 2" << endl << endl;
+			
 			break;
-		case 28:
+/*		case 28:
 			break;
 		case 30:
 			break;
@@ -752,6 +812,10 @@ print_dec_byte_content(sequenceStore, rest);
 			break;
 */		default:
 			cout << "This command is not yet implemented." << endl << endl;
+			
+			sendString = "06599fThere is no command with this id or it is not yet implemented.";
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramSocketFd, sendBuffer, 68);
 			
 			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 			

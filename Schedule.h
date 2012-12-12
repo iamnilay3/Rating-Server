@@ -28,7 +28,7 @@ public:
 	void executeTask(CTask * paramTask);
 	void checkForTasksToExecute();
 	
-	struct timeval * timeToNextTask();
+	timeval * timeToNextTask(timeval * paramTimeToNextTask);
 };
 
 class CTask
@@ -64,9 +64,7 @@ public:
 	int nrOfExpectedDescriptionLines;
 	int nrOfReceivedDescriptionLines;
 	
-	string passwordAttempt;
-	
-	bool passwordCanStillBeCorrect;
+	bool correctPassword;
 	
 	string firstName;
 	string secondName;
@@ -76,8 +74,8 @@ public:
 	
 	bool privateNrOfEvaluatedTtrsGames;
 	
-	CModificationInformation(int paramSocketFd, int paramId, int paramNrOfExpectedDescriptionLines, string paramPasswordAttempt,
-		bool paramPasswordCanStillBeCorrect, string paramFirstName, string paramSecondName, string paramThirdName,
+	CModificationInformation(int paramSocketFd, int paramId, int paramNrOfExpectedDescriptionLines,
+		bool paramCorrectPassword, string paramFirstName, string paramSecondName, string paramThirdName,
 		bool paramPrivateNrOfEvluatedTtrsGames);							// Trivial constructor
 };
 

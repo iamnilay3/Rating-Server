@@ -227,7 +227,11 @@ void commandTesting(int paramSocketFd)
 	strcpy(sendBuffer, sendString.c_str());
 	sendCommand(paramSocketFd, sendBuffer, 5);
 	
+	// Protocol Send-Syntax:	00
+	
 	cout << "Ping command sent - waiting for server answer..." << endl << endl;
+	
+	// Protocol Receive-Syntax: 	01
 	
 	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 	
@@ -252,7 +256,11 @@ void commandTesting(int paramSocketFd)
 	strcpy(sendBuffer, sendString.c_str());
 	sendCommand(paramSocketFd, sendBuffer, 9);
 	
+	// Protocol Send-Syntax:	10:Nickname
+	
 	cout << "Info Requesting - Player Info command sent - waiting for server answer..." << endl << endl;
+	
+	// Protocol Receive-Syntax:	11:{s,f}FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow{t,f}
 	
 	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 	
@@ -308,6 +316,8 @@ void commandTesting(int paramSocketFd)
 		
 		j = ((int) receiveBuffer[++i]) - 48;
 		
+		// Protocol Receive-Syntax:	12:DescriptionLine_i
+		
 		for (i = 0; i < j - 1; i++)
 		{
 			lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
@@ -319,9 +329,13 @@ void commandTesting(int paramSocketFd)
 		
 		account->description.append(&receiveBuffer[5], lengthOfReceivedSequence - 5);
 		
+		// Protocol Receive-Syntax:	13:RatingValue1'\0'RatingValue2'\0'...RatingValue_m'\0'
+		
 		lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 		
 		account->ttrsv.append(&receiveBuffer[5], lengthOfReceivedSequence - 6);
+		
+		// Protocol Receive-Syntax:	14:PlayedGames1'\0'PlayedGames2'\0'...PlayedGames_m'\0'
 		
 		lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 		
@@ -347,7 +361,11 @@ void commandTesting(int paramSocketFd)
 	strcpy(sendBuffer, sendString.c_str());
 	sendCommand(paramSocketFd, sendBuffer, 6);
 	
+	// Protocol Send-Syntax:	15:RatingValueNr
+	
 	cout << "Info Requesting - Rating List command sent - waiting for server answer..." << endl << endl;
+	
+	// Protocol Receive-Syntax:	16:{s,f}NrOfAccountsInListThatWillFollow
 	
 	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 	
@@ -372,6 +390,8 @@ void commandTesting(int paramSocketFd)
 			element->account = new CAccount;
 			
 			account = element->account;
+			
+			// Protocol Receive-Syntax:	17:FirstName'\0'SecondName'\0'ThirdName'\0'
 			
 			lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 			
@@ -411,12 +431,16 @@ void commandTesting(int paramSocketFd)
 			
 			account->thirdName = *subsequence;
 			
+			// Protocol Receive-Syntax:	18:RatingValue1'\0'RatingValue2'\0'...RatingValue_m'\0'
+			
 			lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 			
 			*subsequence = "";
 			subsequence->append(&receiveBuffer[5], 4);
 			
 			account->ttrsv = *subsequence;
+			
+			// Protocol Receive-Syntax:	19:PlayedGames1'\0'PlayedGames2'\0'...PlayedGames_m'\0'
 			
 			lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 			
@@ -455,7 +479,11 @@ void commandTesting(int paramSocketFd)
 	sendBuffer[3] = '2';
 	sendCommand(paramSocketFd, sendBuffer, sendString.length());
 	
+	// Protocol Send-Syntax:	20:Nickname'\0'Password'\0'
+	
 	cout << "Account Modification - Registration command sent - waiting for server answer..." << endl << endl;
+	
+	// Protocol Receive-Syntax:	21:{s,f}ErrorMessage
 	
 	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 	
@@ -465,14 +493,12 @@ void commandTesting(int paramSocketFd)
 	
 	cout << "Account Modification - Registration seems to work." << endl << endl;
 	
-	// Testing the Account Modification - Account Details Modification command (command-id = 22):
+	// Testing the Account Modification - Account Details Modification command 1 (command-id = 22):
 	
-	cout << "Testing the Account Modification - Account Details Modification command ..." << endl << endl;
+	cout << "Testing the Account Modification - Account Details Modification command 1 ..." << endl << endl;
 	
 	nickname = "Claudio Arrau";
 	password = "$money100$!";
-	
-	// 22:OldNickname'\0'Password'\0'FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow
 	
 	sendString = "???22";
 	sendString.append(nickname);
@@ -493,7 +519,38 @@ void commandTesting(int paramSocketFd)
 	sendBuffer[3] = '2';
 	sendCommand(paramSocketFd, sendBuffer, sendString.length());
 	
-	cout << "Account Modification - Account Details Modification command 1 (22) sent - waiting for server answer..." << endl << endl;
+	// Protocol Send-Syntax:
+	//	22:OldNickname'\0'Password'\0'FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow
+	
+	cout << "Account Modification - Account Details Modification command 1 (22) sent - command 2 (23) must be sent now." << endl << endl;
+	
+	// Testing the Account Modification - Account Details Modification command 2 (command-id = 23):
+	
+	cout << "Testing the Account Modification - Account Details Modification command 2 ..." << endl << endl;
+	
+	for (i = 0; i < 2; i++)
+	{
+		sendString = "99723";
+		
+		for (j = 0; j < 995; j++)
+		{
+			sendString.append("A");
+		}
+		
+		copyToBuffer(sendBuffer, sendString, sendString.length());
+		sendCommand(paramSocketFd, sendBuffer, sendString.length());
+	}
+	
+	sendString = "04123And this is the end of the description.";
+	
+	copyToBuffer(sendBuffer, sendString, sendString.length());
+	sendCommand(paramSocketFd, sendBuffer, sendString.length());
+	
+	// Protocol Send-Syntax:	23:DescriptionLine_n
+	
+	cout << "Account Modification - Account Details Modification command 2 (23) sent - waiting for server answer..." << endl << endl;
+	
+	// Protocol Receive-Syntax:	24:{s,f}ErrorMessage'\0'
 	
 	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
 	
@@ -501,5 +558,5 @@ void commandTesting(int paramSocketFd)
 	
 	printf("client: received '%s'\n\n", receiveBuffer);
 	
-//	cout << "Account Modification - Account Details Modification seems to work." << endl << endl;
+	cout << "Account Modification - Account Details Modification seems to work." << endl << endl;
 }

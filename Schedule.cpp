@@ -24,28 +24,37 @@ CSchedule schedule;
 void CSchedule::addTask(int paramDelay, int paramSocketFd, int paramType, int paramId, CModificationInformation * paramModificationInformation,
 			string paramString1, string paramString2, string paramString3)
 {
-	CTask * task = firstTask;
+	time_t executionTime = time(0) + paramDelay;
 	
-	CTask * tempTask;
+	CTask * tempTask = 0;
 	
-	while ((task != 0) && (task->timeWhenToApply < time(0) + paramDelay))
+	CTask * tempNextTask = firstTask;
+	
+	while ((tempNextTask != 0) && (tempNextTask->timeWhenToApply < executionTime))
 	{
-		task = task->nextTask;
+		tempTask = tempNextTask;
+		tempNextTask = tempNextTask->nextTask;
 	}
 	
-	tempTask = task;
-	
-	task = new CTask(time(0) + paramDelay, paramSocketFd, paramType, paramId, paramModificationInformation,
-				paramString1,  paramString2,  paramString3, tempTask);
+	if (tempTask == 0)
+	{
+		firstTask = new CTask(executionTime, paramSocketFd, paramType, paramId, paramModificationInformation,
+					paramString1,  paramString2,  paramString3, tempNextTask);
+	}
+	else
+	{
+		tempTask->nextTask = new CTask(executionTime, paramSocketFd, paramType, paramId, paramModificationInformation,
+						paramString1,  paramString2,  paramString3, tempNextTask);
+	}
 }
 
 void CSchedule::removeTask(CTask * paramTask)
 {
 	CTask * task = firstTask;
 	
-	if (task == paramTask)
+	if (firstTask == paramTask)
 	{
-		task = paramTask->nextTask;
+		firstTask = firstTask->nextTask;
 	}
 	else
 	{
@@ -92,16 +101,14 @@ void CSchedule::checkForTasksToExecute()
 	}
 }
 
-struct timeval * CSchedule::timeToNextTask()
+timeval * CSchedule::timeToNextTask(timeval * paramTimeToNextTask)
 {
-	struct timeval * result;
-	
 	if (firstTask != 0)
 	{
-		result->tv_sec = firstTask->timeWhenToApply - time(0) + 1;
-		result->tv_usec = 0;
+		paramTimeToNextTask->tv_sec = firstTask->timeWhenToApply - time(0) + 1;
+		paramTimeToNextTask->tv_usec = 0;
 		
-		return result;
+		return paramTimeToNextTask;
 	}
 	else
 	{
@@ -124,8 +131,8 @@ CTask::CTask(time_t paramTimeWhenToApply, int paramSocketFd, int paramType, int 
 	nextTask = paramNextTask;
 }
 
-CModificationInformation::CModificationInformation(int paramSocketFd, int paramId, int paramNrOfExpectedDescriptionLines, string paramPasswordAttempt,
-	bool paramPasswordCanStillBeCorrect, string paramFirstName, string paramSecondName, string paramThirdName,
+CModificationInformation::CModificationInformation(int paramSocketFd, int paramId, int paramNrOfExpectedDescriptionLines,
+	bool paramCorrectPassword, string paramFirstName, string paramSecondName, string paramThirdName,
 	bool paramPrivateNrOfEvluatedTtrsGames)
 {													// Trivial constructor
 	socketFd = paramSocketFd;
@@ -135,9 +142,7 @@ CModificationInformation::CModificationInformation(int paramSocketFd, int paramI
 	nrOfExpectedDescriptionLines = paramNrOfExpectedDescriptionLines;
 	nrOfReceivedDescriptionLines = 0;
 	
-	passwordAttempt = paramPasswordAttempt;
-	
-	passwordCanStillBeCorrect = paramPasswordCanStillBeCorrect;
+	correctPassword = paramCorrectPassword;
 	
 	firstName = paramFirstName;
 	secondName = paramSecondName;
