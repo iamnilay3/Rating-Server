@@ -41,9 +41,15 @@ public:
 	
 	string getFirstName();
 	
+	void setFirstName(string paramFirstName);
+	
 	string getSecondName();
 	
+	void setSecondName(string paramSecondName);
+	
 	string getThirdName();
+	
+	void setThirdName(string paramThirdName);
 	
 	float getTtrsv();
 	
@@ -58,6 +64,8 @@ public:
 	void setPrivateNrOfEvaluatedTtrsGames(bool paramPrivateNrOfEvaluatedTtrsGames);
 	
 	string getDescription();
+	
+	void setDescription(string paramDescription);
 	
 	void incrementNrOfEvaluatedTtrsGames();
 	

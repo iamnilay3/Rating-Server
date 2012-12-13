@@ -125,14 +125,29 @@ string CAccount::getFirstName()
 	return firstName;
 }
 
+void CAccount::setFirstName(string paramFirstName)
+{
+	firstName = paramFirstName;
+}
+
 string CAccount::getSecondName()
 {
 	return secondName;
 }
 
+void CAccount::setSecondName(string paramSecondName)
+{
+	secondName = paramSecondName;
+}
+
 string CAccount::getThirdName()
 {
 	return thirdName;
+}
+
+void CAccount::setThirdName(string paramThirdName)
+{
+	thirdName = paramThirdName;
 }
 
 float CAccount::getTtrsv()
@@ -169,6 +184,11 @@ void CAccount::setPrivateNrOfEvaluatedTtrsGames(bool paramPrivateNrOfEvaluatedTt
 string CAccount::getDescription()
 {
 	return description;
+}
+
+void CAccount::setDescription(string paramDescription)
+{
+	description = paramDescription;
 }
 
 void CAccount::incrementNrOfEvaluatedTtrsGames()
@@ -291,7 +311,7 @@ CAccount * addAccount(int paramId, string paramFirstName, string paramSecondName
 {
 	if ((getIdFromName(paramFirstName) > 0) || (getIdFromName(paramSecondName) > 0) || (getIdFromName(paramThirdName) > 0))
 	{
-		cout << "An account with one of the specified names already exists. Creation canceled!" << endl;
+		cout << "An account with one of the specified names already exists. Creation canceled!" << endl << endl;
 		
 		return 0;
 	}

@@ -17,6 +17,7 @@ using namespace std;
 
 class CTask;
 class CModificationInformation;
+
 class CSchedule
 {
 public:

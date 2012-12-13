@@ -351,22 +351,19 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 
 void handleIncomingData(int paramSocketFd)
 {
-	int i, j, k, l;
-	
 	CCircularBuffer * circularBuffer = &socketBuffer[paramSocketFd];
 	
-	int start = circularBuffer->dataStart;				// Data start
 	int rest = circularBuffer->restOfSequenceLength - 2;		// Length of the rest of the sequence after the command-id
-	int cid = circularBuffer->commandType;				// Command-id
 	
 	string sendString;
 	char sendBuffer[1000];
-	
 	char sequenceStore[1000];
-	string * subsequence;
-	string s;
+	
+	int i, j, k, l;
 	char c;
 	char cp[6];
+	string * subsequence;
+	string s;
 	
 	CAccount * account;
 	CRatingListElement * element;
@@ -382,7 +379,9 @@ void handleIncomingData(int paramSocketFd)
 	CTask * task;
 	CModificationInformation * modificationInformation;
 	
-	switch (cid)
+	bufferToLineArray(circularBuffer, sequenceStore, rest);
+	
+	switch (circularBuffer->commandType)
 	{
 		case 00:	// Ping
 			
@@ -394,8 +393,6 @@ void handleIncomingData(int paramSocketFd)
 			
 			// Protocol Send-Syntax: 	01
 			
-			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
-			
 			cout << "Handled command: Ping" << endl << endl;
 			
 			break;
@@ -406,7 +403,6 @@ void handleIncomingData(int paramSocketFd)
 			
 			subsequence = new string();
 			
-			bufferToLineArray(circularBuffer, sequenceStore, rest);
 			subsequence->append(sequenceStore, rest);
 			
 			account = getAccountFromName(*subsequence);
@@ -416,8 +412,6 @@ void handleIncomingData(int paramSocketFd)
 				sendString = "00311f";
 				strcpy(sendBuffer, sendString.c_str());
 				sendCommand(paramSocketFd, sendBuffer, 6);
-				
-				circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 				
 				break;
 			}
@@ -492,8 +486,6 @@ void handleIncomingData(int paramSocketFd)
 			
 			delete subsequence;
 			
-			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
-			
 			cout << "Handled command: Info Requesting - Player Info" << endl << endl;
 			
 			break;
@@ -503,8 +495,6 @@ void handleIncomingData(int paramSocketFd)
 			// Protocol Receive-Syntax:	15:RatingValueNr
 			
 			subsequence = new string();
-			
-			bufferToLineArray(circularBuffer, sequenceStore, rest);
 			subsequence->append(sequenceStore, rest);
 			
 			if (subsequence->compare("1") != 0)
@@ -512,8 +502,6 @@ void handleIncomingData(int paramSocketFd)
 				sendString = "00316f";
 				strcpy(sendBuffer, sendString.c_str());
 				sendCommand(paramSocketFd, sendBuffer, 6);
-				
-				circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 				
 				break;
 			}
@@ -569,8 +557,6 @@ void handleIncomingData(int paramSocketFd)
 			
 			delete subsequence;
 			
-			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
-			
 			cout << "Handled command: Info Requesting - Rating List" << endl << endl;
 			
 			break;
@@ -579,13 +565,11 @@ void handleIncomingData(int paramSocketFd)
 			
 			// Protocol Receive-Syntax:	20:Nickname'\0'Password'\0'
 			
-			bufferToLineArray(circularBuffer, sequenceStore, rest);
-			
 			nickname = "";
 			
 			i = 0;
 			
-			while ((*cp = sequenceStore[i]) != '\0')
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
 			{
 				nickname.append(cp, 1);
 				i++;
@@ -595,7 +579,7 @@ void handleIncomingData(int paramSocketFd)
 			
 			i++;
 			
-			while ((*cp = sequenceStore[i]) != '\0')
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
 			{
 				password.append(cp, 1);
 				i++;
@@ -616,8 +600,6 @@ void handleIncomingData(int paramSocketFd)
 			
 			// Protocol Send-Syntax:	21:{s,f}ErrorMessage
 			
-			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
-			
 			cout << "Handled command: Account Modification - Registration" << endl << endl;
 			
 			break;
@@ -627,13 +609,11 @@ void handleIncomingData(int paramSocketFd)
 			// Protocol Receive-Syntax:
 			//	22:OldNickname'\0'Password'\0'FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow
 			
-			bufferToLineArray(circularBuffer, sequenceStore, rest);
-			
 			nickname = "";
 			
 			i = 0;
 			
-			while ((*cp = sequenceStore[i]) != '\0')
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
 			{
 				nickname.append(cp, 1);
 				i++;
@@ -646,8 +626,6 @@ void handleIncomingData(int paramSocketFd)
 				sendString = "05024fThere is no account with that name you entered.";
 				strcpy(sendBuffer, sendString.c_str());
 				sendCommand(paramSocketFd, sendBuffer, 53);
-				
-				circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 				
 				break;
 			}
@@ -662,7 +640,7 @@ void handleIncomingData(int paramSocketFd)
 					strcpy(sendBuffer, sendString.c_str());
 					sendCommand(paramSocketFd, sendBuffer, 53);
 					
-					circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
+					// Protocol Send-Syntax:	24:{s,f}ErrorMessage
 					
 					break;
 				}
@@ -679,7 +657,7 @@ void handleIncomingData(int paramSocketFd)
 			
 			i++;
 			
-			while ((*cp = sequenceStore[i]) != '\0')
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
 			{
 				password.append(cp, 1);
 				i++;
@@ -689,7 +667,7 @@ void handleIncomingData(int paramSocketFd)
 			
 			i++;
 			
-			while ((*cp = sequenceStore[i]) != '\0')
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
 			{
 				firstName.append(cp, 1);
 				i++;
@@ -699,7 +677,7 @@ void handleIncomingData(int paramSocketFd)
 			
 			i++;
 			
-			while ((*cp = sequenceStore[i]) != '\0')
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
 			{
 				secondName.append(cp, 1);
 				i++;
@@ -709,7 +687,7 @@ void handleIncomingData(int paramSocketFd)
 			
 			i++;
 			
-			while ((*cp = sequenceStore[i]) != '\0')
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
 			{
 				thirdName.append(cp, 1);
 				i++;
@@ -726,8 +704,6 @@ void handleIncomingData(int paramSocketFd)
 			
 			schedule.addTask(5, paramSocketFd, 1, id, modificationInformation, "", "", "");
 			
-			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
-			
 			cout << "Handled command: Account Modification - Account Details Modification 1" << endl << endl;
 			
 			break;
@@ -735,8 +711,6 @@ void handleIncomingData(int paramSocketFd)
 		case 23:	// Account Modification - Account Details Modification 2
 			
 			// Protocol Receive-Syntax:	23:DescriptionLine_n
-			
-			bufferToLineArray(circularBuffer, sequenceStore, rest);
 			
 			task = schedule.firstTask;
 			
@@ -752,9 +726,7 @@ void handleIncomingData(int paramSocketFd)
 			
 			if (!((task != 0) && (task->socketFd == paramSocketFd) && (task->type == 1)))
 			{
-				circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
-				
-				cout << "Rejecting unexpected command: Account Modification - Account Details Modification 2" << endl << endl;
+				cout << "Rejected unexpected command: Account Modification - Account Details Modification 2" << endl << endl;
 				
 				break;
 			}
@@ -763,17 +735,6 @@ void handleIncomingData(int paramSocketFd)
 			
 			modificationInformation->description.append(sequenceStore, rest);
 			modificationInformation->nrOfReceivedDescriptionLines += 1;
-			
-			if (modificationInformation->nrOfExpectedDescriptionLines == modificationInformation->nrOfReceivedDescriptionLines)
-			{
-				sendString = "00324s";
-				strcpy(sendBuffer, sendString.c_str());
-				sendCommand(paramSocketFd, sendBuffer, 53);
-				
-				// Protocol Send-Syntax:	24:{s,f}ErrorMessage
-			}
-			
-			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 			
 			cout << "Handled command: Account Modification - Account Details Modification 2" << endl << endl;
 			
@@ -817,8 +778,8 @@ void handleIncomingData(int paramSocketFd)
 			strcpy(sendBuffer, sendString.c_str());
 			sendCommand(paramSocketFd, sendBuffer, 68);
 			
-			circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
-			
 			break;
 	}
+	
+	circularBuffer->dataStart = (circularBuffer->dataStart + rest) % 2000;
 }

@@ -15,6 +15,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "RatingServer.h"
+#include "Network.h"
+#include "Games.h"
 #include "Schedule.h"
 
 using namespace std;
@@ -71,12 +74,81 @@ void CSchedule::removeTask(CTask * paramTask)
 
 void CSchedule::executeTask(CTask * paramTask)
 {
+	string sendString;
+	char sendBuffer[1000];
+	
+	CModificationInformation * modificationInformation;
+	CAccount * account;
+	
+	int i;
+	
 	switch(paramTask->type)
 	{
-		case 0:
-			break;
-			
 		case 1:
+			modificationInformation = paramTask->modificationInformation;
+			
+			if (!modificationInformation->correctPassword)
+			{
+				sendString = "02524fThe password is wrong.";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramTask->socketFd, sendBuffer, 28);
+				
+				break;
+			}
+			
+			if (modificationInformation->nrOfExpectedDescriptionLines != modificationInformation->nrOfReceivedDescriptionLines)
+			{
+				sendString = "05024fCould not receive all lines of the description.";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramTask->socketFd, sendBuffer, 53);
+				
+				break;
+			}
+			
+			account = getAccountFromId(modificationInformation->id);
+			
+			if (((i = getIdFromName(modificationInformation->firstName)) > 0) && (i != modificationInformation->id))
+			{
+				sendString = "04924fAn account with the first Name already exists.";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramTask->socketFd, sendBuffer, 52);
+				
+				break;
+			}
+			
+			if (((i = getIdFromName(modificationInformation->secondName)) > 0) && (i != modificationInformation->id))
+			{
+				sendString = "05024fAn account with the second Name already exists.";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramTask->socketFd, sendBuffer, 53);
+				
+				break;
+			}
+			
+			if (((i = getIdFromName(modificationInformation->thirdName)) > 0) && (i != modificationInformation->id))
+			{
+				sendString = "04924fAn account with the third Name already exists.";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramTask->socketFd, sendBuffer, 52);
+				
+				break;
+			}
+			
+			account->setFirstName(modificationInformation->firstName);
+			account->setSecondName(modificationInformation->secondName);
+			account->setThirdName(modificationInformation->thirdName);
+			account->setPrivateNrOfEvaluatedTtrsGames(modificationInformation->privateNrOfEvaluatedTtrsGames);
+			account->setDescription(modificationInformation->description);
+			
+			sendString = "00324s";
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramTask->socketFd, sendBuffer, 53);
+			
+			// Protocol Send-Syntax:	24:{s,f}ErrorMessage
+			
+			cout << "Modified account:" << endl;
+			account->printDetails();
+			
 			break;
 			
 		case 2:
