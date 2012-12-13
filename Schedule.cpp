@@ -146,6 +146,8 @@ void CSchedule::executeTask(CTask * paramTask)
 			
 			// Protocol Send-Syntax:	24:{s,f}ErrorMessage
 			
+			saveToFile(pathToFileToSaveTo);
+			
 			cout << "Modified account:" << endl;
 			account->printDetails();
 			
@@ -171,6 +173,8 @@ void CSchedule::executeTask(CTask * paramTask)
 			
 			// Protocol Send-Syntax:	29:{s,f}ErrorMessage
 			
+			saveToFile(pathToFileToSaveTo);
+			
 			cout << "Changed password of account (id = " << paramTask->id << ")." << endl << endl;
 			
 			break;
@@ -192,6 +196,8 @@ void CSchedule::executeTask(CTask * paramTask)
 			sendCommand(paramTask->socketFd, sendBuffer, 6);
 			
 			// Protocol Send-Syntax:	31:{s,f}ErrorMessage
+			
+			saveToFile(pathToFileToSaveTo);
 			
 			break;
 			

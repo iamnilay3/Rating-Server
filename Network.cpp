@@ -602,6 +602,8 @@ void handleIncomingData(int paramSocketFd)
 			
 			// Protocol Send-Syntax:	21:{s,f}ErrorMessage
 			
+			saveToFile(pathToFileToSaveTo);
+			
 			cout << "Handled command: Account Modification - Registration" << endl << endl;
 			
 			break;

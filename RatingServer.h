@@ -135,4 +135,6 @@ extern CAccountListElement * accountListEnd;
 extern CRatingListElement * ratingListStart;
 extern CRatingListElement * ratingListEnd;
 
+extern const char * pathToFileToSaveTo;
+
 #endif

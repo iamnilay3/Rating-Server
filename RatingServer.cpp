@@ -30,6 +30,8 @@
 
 using namespace std;
 
+const char * pathToFileToSaveTo;
+
 int numberOfRegisteredAccounts = 0;
 int idOfLastRegisteredAccount  = 0;
 
@@ -48,7 +50,9 @@ int main(int argc, char * argv[])
 		cout << endl << "Usage: RatingServer FileToLoadFrom FileToSaveTo ListeningPortNr MaxConnections" << endl << endl;
 		return 1;
 	}
-		
+	
+	pathToFileToSaveTo = argv[2];
+	
 	setupAccountList();
 	setupRatingList();
 	
