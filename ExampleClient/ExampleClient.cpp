@@ -570,7 +570,7 @@ void commandTesting(int paramSocketFd)
 	
 	cout << "Account Modification - Account Details Modification seems to work." << endl << endl;
 	
-	// Testing the Account Modification - Password Modification (command-id = 28):
+	// Testing the Account Modification - Password Modification command (command-id = 28):
 	
 	cout << "Testing the Account Modification - Password Modification command ..." << endl << endl;
 	
@@ -600,4 +600,33 @@ void commandTesting(int paramSocketFd)
 	printf("client: received '%s'\n\n", receiveBuffer);
 	
 	cout << "Account Modification - Password Modification seems to work." << endl << endl;
+	
+	// Testing the Account Modification - Deletion command (command-id = 30):
+	
+	cout << "Testing the Account Modification - Deletion command ..." << endl << endl;
+	
+	sendString = "???30";
+	sendString.append("David Hilbert");
+	sendString.append(1, '\0');
+	sendString.append("uE(2lai9?s");
+	sendString.append(1, '\0');
+	
+	copyToBuffer(sendBuffer, sendString, sendString.length());
+	sprintf(sendBuffer, "%03d", sendString.length() - 3);
+	sendBuffer[3] = '3';
+	sendCommand(paramSocketFd, sendBuffer, sendString.length());
+	
+	// Protocol Send-Syntax:	30:Nickname'\0'Password'\0'
+	
+	cout << "Account Modification - Deletion command sent - waiting for server answer..." << endl << endl;
+	
+	// Protocol Receive-Syntax:	31:{s,f}ErrorMessage
+	
+	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+	
+	receiveBuffer[lengthOfReceivedSequence] = '\0';
+	
+	printf("client: received '%s'\n\n", receiveBuffer);
+	
+	cout << "Account Modification - Deletion seems to work." << endl << endl;
 }

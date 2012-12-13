@@ -640,7 +640,7 @@ void handleIncomingData(int paramSocketFd)
 				{
 					sendString = "03324fAnother change is in progress.";
 					strcpy(sendBuffer, sendString.c_str());
-					sendCommand(paramSocketFd, sendBuffer, 53);
+					sendCommand(paramSocketFd, sendBuffer, 36);
 					
 					// Protocol Send-Syntax:	24:{s,f}ErrorMessage
 					
@@ -775,7 +775,7 @@ void handleIncomingData(int paramSocketFd)
 				{
 					sendString = "03329fAnother change is in progress.";
 					strcpy(sendBuffer, sendString.c_str());
-					sendCommand(paramSocketFd, sendBuffer, 53);
+					sendCommand(paramSocketFd, sendBuffer, 36);
 					
 					// Protocol Send-Syntax:	29:{s,f}ErrorMessage
 					
@@ -818,9 +818,73 @@ void handleIncomingData(int paramSocketFd)
 			
 			break;
 			
-/*		case 30:
+		case 30:	// Account Modification - Deletion
+			
+			// Protocol Receive-Syntax:	30:Nickname'\0'Password'\0'
+			
+			nickname = "";
+			
+			i = 0;
+			
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
+			{
+				nickname.append(cp, 1);
+				i++;
+			}
+			
+			id = getIdFromName(nickname);
+			
+			if (id < 0)
+			{
+				sendString = "05031fThere is no account with that name you entered.";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, 53);
+				
+				break;
+			}
+			
+			task = schedule.firstTask;
+			
+			while (task != 0)
+			{
+				if ((task->socketFd == paramSocketFd) || (task->id == id))
+				{
+					sendString = "03331fAnother change is in progress.";
+					strcpy(sendBuffer, sendString.c_str());
+					sendCommand(paramSocketFd, sendBuffer, 36);
+					
+					// Protocol Send-Syntax:	31:{s,f}ErrorMessage
+					
+					break;
+				}
+				
+				task = task->nextTask;
+			}
+			
+			if ((task != 0) && (task->socketFd == paramSocketFd) && (task->type == 1))
+			{
+				break;
+			}
+			
+			password = "";
+			
+			i++;
+			
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
+			{
+				password.append(cp, 1);
+				i++;
+			}
+			
+			account = getAccountFromId(id);
+			
+			schedule.addTask(5, paramSocketFd, account->passwordMatches(password), 3, id, 0, "");
+			
+			cout << "Handled command: Account Modification - Deletion" << endl << endl;
+			
 			break;
-		case 50:
+			
+/*		case 50:
 			break;
 		case 52:
 			break;

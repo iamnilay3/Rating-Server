@@ -85,8 +85,6 @@ void CSchedule::executeTask(CTask * paramTask)
 	switch(paramTask->type)
 	{
 		case 1:
-			modificationInformation = paramTask->modificationInformation;
-			
 			if (!paramTask->correctPassword)
 			{
 				sendString = "02524fThe password is wrong.";
@@ -95,6 +93,8 @@ void CSchedule::executeTask(CTask * paramTask)
 				
 				break;
 			}
+			
+			modificationInformation = paramTask->modificationInformation;
 			
 			if (modificationInformation->nrOfExpectedDescriptionLines != modificationInformation->nrOfReceivedDescriptionLines)
 			{
@@ -171,11 +171,28 @@ void CSchedule::executeTask(CTask * paramTask)
 			
 			// Protocol Send-Syntax:	29:{s,f}ErrorMessage
 			
-			cout << "Changed password of account #" << paramTask->id << "." << endl << endl;
+			cout << "Changed password of account (id = " << paramTask->id << ")." << endl << endl;
 			
 			break;
 			
 		case 3:
+			if (!paramTask->correctPassword)
+			{
+				sendString = "02531fThe password is wrong.";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramTask->socketFd, sendBuffer, 28);
+				
+				break;
+			}
+			
+			removeAccount(paramTask->id);
+			
+			sendString = "00331s";
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramTask->socketFd, sendBuffer, 6);
+			
+			// Protocol Send-Syntax:	31:{s,f}ErrorMessage
+			
 			break;
 			
 		default:
