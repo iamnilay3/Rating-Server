@@ -105,6 +105,16 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+void print_dec_byte_content(char * pointer, int length)
+{
+	int i;
+	
+	for (i = 0; i < length; i++)
+	{
+		printf("Decimal (unsigned int) content of pointer[%d] is %d (%c).\n\n", i, pointer[i], pointer[i]);
+	}
+}
+
 void sendCommand(int paramSocketFd, const void *paramSendBuffer, size_t paramLength)
 {
 	if (send(paramSocketFd, paramSendBuffer, paramLength, 0) == -1)
@@ -559,4 +569,35 @@ void commandTesting(int paramSocketFd)
 	printf("client: received '%s'\n\n", receiveBuffer);
 	
 	cout << "Account Modification - Account Details Modification seems to work." << endl << endl;
+	
+	// Testing the Account Modification - Password Modification (command-id = 28):
+	
+	cout << "Testing the Account Modification - Password Modification command ..." << endl << endl;
+	
+	sendString = "???28";
+	sendString.append("David Hilbert");
+	sendString.append(1, '\0');
+	sendString.append("$money100$!");
+	sendString.append(1, '\0');
+	sendString.append("uE(2lai9?s");
+	sendString.append(1, '\0');
+	
+	copyToBuffer(sendBuffer, sendString, sendString.length());
+	sprintf(sendBuffer, "%03d", sendString.length() - 3);
+	sendBuffer[3] = '2';
+	sendCommand(paramSocketFd, sendBuffer, sendString.length());
+	
+	// Protocol Send-Syntax:	28:Nickname'\0'OldPassword'\0'NewPassword'0'
+	
+	cout << "Account Modification - Password Modification command sent - waiting for server answer..." << endl << endl;
+	
+	// Protocol Receive-Syntax:	29:{s,f}ErrorMessage
+	
+	lengthOfReceivedSequence = fetchSequence(paramSocketFd, receiveBuffer);
+	
+	receiveBuffer[lengthOfReceivedSequence] = '\0';
+	
+	printf("client: received '%s'\n\n", receiveBuffer);
+	
+	cout << "Account Modification - Password Modification seems to work." << endl << endl;
 }

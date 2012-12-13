@@ -191,6 +191,11 @@ void CAccount::setDescription(string paramDescription)
 	description = paramDescription;
 }
 
+void CAccount::setPassword(string paramPassword)
+{
+	password = paramPassword;
+}
+
 void CAccount::incrementNrOfEvaluatedTtrsGames()
 {
 	nrOfEvaluatedTtrsGames++;

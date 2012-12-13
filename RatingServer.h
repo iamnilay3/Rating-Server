@@ -67,6 +67,8 @@ public:
 	
 	void setDescription(string paramDescription);
 	
+	void setPassword(string paramPassword);
+	
 	void incrementNrOfEvaluatedTtrsGames();
 	
 	bool passwordMatches(string paramPassword);

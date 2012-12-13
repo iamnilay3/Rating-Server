@@ -23,8 +23,8 @@ class CSchedule
 public:
 	CTask * firstTask;
 	
-	void addTask(int paramDelay, int paramSocketFd, int paramType, int paramId, CModificationInformation * paramModificationInformation,
-		string paramString1, string paramString2, string paramString3);
+	void addTask(int paramDelay, int paramSocketFd, bool paramCorrectPassword, int paramType, int paramId,
+			CModificationInformation * paramModificationInformation, string paramString1);
 	void removeTask(CTask * paramTask);
 	void executeTask(CTask * paramTask);
 	void checkForTasksToExecute();
@@ -39,6 +39,8 @@ public:
 	
 	int socketFd;
 	
+	bool correctPassword;
+	
 	int type;
 	
 	int id;
@@ -46,13 +48,11 @@ public:
 	CModificationInformation * modificationInformation;
 	
 	string string1;
-	string string2;
-	string string3;
 	
 	CTask * nextTask;
 	
-	CTask(time_t paramTimeWhenToApply, int paramSocketFd, int paramType, int paramId, CModificationInformation * paramModificationInformation,
-	string paramString1, string paramString2, string paramString3, CTask * paramNextTask);			// Trivial constructor
+	CTask(time_t paramTimeWhenToApply, int paramSocketFd, bool paramCorrectPassword, int paramType, int paramId,
+		CModificationInformation * paramModificationInformation, string paramString1, CTask * paramNextTask);	// Trivial constructor
 };
 
 class CModificationInformation
@@ -65,8 +65,6 @@ public:
 	int nrOfExpectedDescriptionLines;
 	int nrOfReceivedDescriptionLines;
 	
-	bool correctPassword;
-	
 	string firstName;
 	string secondName;
 	string thirdName;
@@ -76,7 +74,7 @@ public:
 	bool privateNrOfEvaluatedTtrsGames;
 	
 	CModificationInformation(int paramSocketFd, int paramId, int paramNrOfExpectedDescriptionLines,
-		bool paramCorrectPassword, string paramFirstName, string paramSecondName, string paramThirdName,
+		string paramFirstName, string paramSecondName, string paramThirdName,
 		bool paramPrivateNrOfEvluatedTtrsGames);							// Trivial constructor
 };
 

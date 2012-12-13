@@ -24,8 +24,8 @@ using namespace std;
 
 CSchedule schedule;
 
-void CSchedule::addTask(int paramDelay, int paramSocketFd, int paramType, int paramId, CModificationInformation * paramModificationInformation,
-			string paramString1, string paramString2, string paramString3)
+void CSchedule::addTask(int paramDelay, int paramSocketFd, bool paramCorrectPassword, int paramType, int paramId,
+			CModificationInformation * paramModificationInformation, string paramString1)
 {
 	time_t executionTime = time(0) + paramDelay;
 	
@@ -41,13 +41,13 @@ void CSchedule::addTask(int paramDelay, int paramSocketFd, int paramType, int pa
 	
 	if (tempTask == 0)
 	{
-		firstTask = new CTask(executionTime, paramSocketFd, paramType, paramId, paramModificationInformation,
-					paramString1,  paramString2,  paramString3, tempNextTask);
+		firstTask = new CTask(executionTime, paramSocketFd, paramCorrectPassword, paramType, paramId, paramModificationInformation,
+					paramString1, tempNextTask);
 	}
 	else
 	{
-		tempTask->nextTask = new CTask(executionTime, paramSocketFd, paramType, paramId, paramModificationInformation,
-						paramString1,  paramString2,  paramString3, tempNextTask);
+		tempTask->nextTask = new CTask(executionTime, paramSocketFd, paramCorrectPassword, paramType, paramId, paramModificationInformation,
+						paramString1, tempNextTask);
 	}
 }
 
@@ -87,7 +87,7 @@ void CSchedule::executeTask(CTask * paramTask)
 		case 1:
 			modificationInformation = paramTask->modificationInformation;
 			
-			if (!modificationInformation->correctPassword)
+			if (!paramTask->correctPassword)
 			{
 				sendString = "02524fThe password is wrong.";
 				strcpy(sendBuffer, sendString.c_str());
@@ -105,7 +105,7 @@ void CSchedule::executeTask(CTask * paramTask)
 				break;
 			}
 			
-			account = getAccountFromId(modificationInformation->id);
+			account = getAccountFromId(paramTask->id);
 			
 			if (((i = getIdFromName(modificationInformation->firstName)) > 0) && (i != modificationInformation->id))
 			{
@@ -142,7 +142,7 @@ void CSchedule::executeTask(CTask * paramTask)
 			
 			sendString = "00324s";
 			strcpy(sendBuffer, sendString.c_str());
-			sendCommand(paramTask->socketFd, sendBuffer, 53);
+			sendCommand(paramTask->socketFd, sendBuffer, 6);
 			
 			// Protocol Send-Syntax:	24:{s,f}ErrorMessage
 			
@@ -152,6 +152,27 @@ void CSchedule::executeTask(CTask * paramTask)
 			break;
 			
 		case 2:
+			if (!paramTask->correctPassword)
+			{
+				sendString = "02529fThe password is wrong.";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramTask->socketFd, sendBuffer, 28);
+				
+				break;
+			}
+			
+			account = getAccountFromId(paramTask->id);
+			
+			account->setPassword(paramTask->string1);
+			
+			sendString = "00329s";
+			strcpy(sendBuffer, sendString.c_str());
+			sendCommand(paramTask->socketFd, sendBuffer, 6);
+			
+			// Protocol Send-Syntax:	29:{s,f}ErrorMessage
+			
+			cout << "Changed password of account #" << paramTask->id << "." << endl << endl;
+			
 			break;
 			
 		case 3:
@@ -188,24 +209,23 @@ timeval * CSchedule::timeToNextTask(timeval * paramTimeToNextTask)
 	}
 }
 
-CTask::CTask(time_t paramTimeWhenToApply, int paramSocketFd, int paramType, int paramId, CModificationInformation * paramModificationInformation,
-	string paramString1, string paramString2, string paramString3, CTask * paramNextTask)
+CTask::CTask(time_t paramTimeWhenToApply, int paramSocketFd, bool paramCorrectPassword, int paramType, int paramId,
+		CModificationInformation * paramModificationInformation, string paramString1, CTask * paramNextTask)
 {													// Trivial constructor
 	timeWhenToApply = paramTimeWhenToApply;
 	socketFd = paramSocketFd;
+	correctPassword = paramCorrectPassword;
 	type = paramType;
 	id = paramId;
 	modificationInformation = paramModificationInformation;
 	string1 = paramString1;
-	string2 = paramString2;
-	string3 = paramString3;
 	
 	nextTask = paramNextTask;
 }
 
 CModificationInformation::CModificationInformation(int paramSocketFd, int paramId, int paramNrOfExpectedDescriptionLines,
-	bool paramCorrectPassword, string paramFirstName, string paramSecondName, string paramThirdName,
-	bool paramPrivateNrOfEvluatedTtrsGames)
+							string paramFirstName, string paramSecondName, string paramThirdName,
+							bool paramPrivateNrOfEvluatedTtrsGames)
 {													// Trivial constructor
 	socketFd = paramSocketFd;
 	
@@ -213,8 +233,6 @@ CModificationInformation::CModificationInformation(int paramSocketFd, int paramI
 	
 	nrOfExpectedDescriptionLines = paramNrOfExpectedDescriptionLines;
 	nrOfReceivedDescriptionLines = 0;
-	
-	correctPassword = paramCorrectPassword;
 	
 	firstName = paramFirstName;
 	secondName = paramSecondName;

@@ -370,6 +370,8 @@ void handleIncomingData(int paramSocketFd)
 	
 	string nickname;
 	string password;
+	string newPassword;
+	
 	string firstName, secondName, thirdName;
 	bool privateNrOfEvaluatedTtrsGames;
 	int nrOfExpectedDescriptionLines;
@@ -700,9 +702,9 @@ void handleIncomingData(int paramSocketFd)
 			
 			modificationInformation =
 				new CModificationInformation(paramSocketFd, id, nrOfExpectedDescriptionLines,
-					account->passwordMatches(password), firstName, secondName, thirdName, privateNrOfEvaluatedTtrsGames);
+								firstName, secondName, thirdName, privateNrOfEvaluatedTtrsGames);
 			
-			schedule.addTask(5, paramSocketFd, 1, id, modificationInformation, "", "", "");
+			schedule.addTask(5, paramSocketFd, account->passwordMatches(password), 1, id, modificationInformation, "");
 			
 			cout << "Handled command: Account Modification - Account Details Modification 1" << endl << endl;
 			
@@ -739,9 +741,84 @@ void handleIncomingData(int paramSocketFd)
 			cout << "Handled command: Account Modification - Account Details Modification 2" << endl << endl;
 			
 			break;
-/*		case 28:
+			
+		case 28:	// Account Modification - Password Modification
+			
+			// Protocol Receive-Syntax:	28:Nickname'\0'OldPassword'\0'NewPassword'0'
+			
+			nickname = "";
+			
+			i = 0;
+			
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
+			{
+				nickname.append(cp, 1);
+				i++;
+			}
+			
+			id = getIdFromName(nickname);
+			
+			if (id < 0)
+			{
+				sendString = "05029fThere is no account with that name you entered.";
+				strcpy(sendBuffer, sendString.c_str());
+				sendCommand(paramSocketFd, sendBuffer, 53);
+				
+				break;
+			}
+			
+			task = schedule.firstTask;
+			
+			while (task != 0)
+			{
+				if ((task->socketFd == paramSocketFd) || (task->id == id))
+				{
+					sendString = "03329fAnother change is in progress.";
+					strcpy(sendBuffer, sendString.c_str());
+					sendCommand(paramSocketFd, sendBuffer, 53);
+					
+					// Protocol Send-Syntax:	29:{s,f}ErrorMessage
+					
+					break;
+				}
+				
+				task = task->nextTask;
+			}
+			
+			if ((task != 0) && (task->socketFd == paramSocketFd) && (task->type == 1))
+			{
+				break;
+			}
+			
+			password = "";
+			
+			i++;
+			
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
+			{
+				password.append(cp, 1);
+				i++;
+			}
+			
+			newPassword = "";
+			
+			i++;
+			
+			while (((*cp = sequenceStore[i]) != '\0') && (i < rest))
+			{
+				newPassword.append(cp, 1);
+				i++;
+			}
+			
+			account = getAccountFromId(id);
+			
+			schedule.addTask(5, paramSocketFd, account->passwordMatches(password), 2, id, 0, newPassword);
+			
+			cout << "Handled command: Account Modification - Password Modification" << endl << endl;
+			
 			break;
-		case 30:
+			
+/*		case 30:
 			break;
 		case 50:
 			break;
