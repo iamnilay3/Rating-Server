@@ -3,5 +3,7 @@
 *~
 
 *.trs
+
 RatingServer
-ExampleClient/ExampleClient
+ExampleGameClient/ExampleGameClient
+ExampleGameServer/ExampleGameServer
