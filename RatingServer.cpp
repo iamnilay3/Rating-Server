@@ -28,6 +28,8 @@
 #include "Network.h"
 #include "Games.h"
 
+#include <time.h>
+
 using namespace std;
 
 const char * pathToFileToSaveTo;
@@ -43,11 +45,25 @@ CRatingListElement * ratingListEnd;
 
 int main(int argc, char * argv[])
 {
+/*	srand(time(0));							// Testing a randomizer
+	unsigned char randomChar[4];
+	int i;
+	for (i = 0; i < 4; i++)
+	{
+		randomChar[i] = (unsigned char) (rand() % 256);
+	}
+	for (i = 0; i < 4; i++)
+	{
+		printf("randomChar[i] = %d\n\n", randomChar[i]);
+	}
+*/	
+	
+	
 	cout << endl << "Tirili's Rating Server" << endl << endl;
 	
 	if (argc != 5)
 	{
-		cout << endl << "Usage: RatingServer FileToLoadFrom FileToSaveTo ListeningPortNr MaxConnections" << endl << endl;
+		cout << "Usage: RatingServer FileToLoadFrom FileToSaveTo ListeningPortNr MaxConnections" << endl << endl;
 		return 1;
 	}
 	

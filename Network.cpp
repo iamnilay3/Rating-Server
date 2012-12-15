@@ -120,38 +120,34 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 	fd_set master;    // master file descriptor list
 	fd_set read_fds;  // temp file descriptor list for select()
 	int fdmax;        // maximum file descriptor number
-	
 	int listener;     // listening socket descriptor
 	int newfd;        // newly accept()ed socket descriptor
 	struct sockaddr_storage remoteaddr; // client address
 	socklen_t addrlen;
+	char remoteIP[INET6_ADDRSTRLEN];
+	int yes=1;        // for setsockopt() SO_REUSEADDR, below
+	struct addrinfo hints, *ai, *p;
+	int rv;
 	
 	char buf[1000];    // buffer for client data
 	int nbytes;
-	
-	char remoteIP[INET6_ADDRSTRLEN];
-	
-	int yes=1;        // for setsockopt() SO_REUSEADDR, below
 	
 	timeval timeToNextTask;
 	
 	CCircularBuffer * circularBuffer;
 	
-	struct addrinfo hints, *ai, *p;
-	
 	socketBuffer = new CCircularBuffer[atoi(paramMaxConnections) + 4];
 	
-	int i, k, j, rv;
+	int i, k, j;
 	
 	char tempString[4];
 	
 	cout << "Listening for connections ..." << endl << endl;
 	
-	FD_ZERO(&master);    // clear the master and temp sets
+	FD_ZERO(&master);	// clear the master and temp sets
 	FD_ZERO(&read_fds);
 	
-	// get us a socket and bind it
-	memset(&hints, 0, sizeof hints);
+	memset(&hints, 0, sizeof hints);	// get us a socket and bind it
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
@@ -181,30 +177,25 @@ void setupConnectionsAndManageCommunications(char * paramListeningPortNr, char *
 		break;
 	}
 	
-	// if we got here, it means we didn't get bound
-	if (p == NULL)
+	if (p == NULL)		// if we got here, it means we didn't get bound
 	{
 		fprintf(stderr, "selectserver: failed to bind\n");
 		exit(2);
 	}
 	
-	freeaddrinfo(ai); // all done with this
+	freeaddrinfo(ai);	// all done with this
 	
-	// listen
-	if (listen(listener, atoi(paramMaxConnections)) == -1)
+	if (listen(listener, atoi(paramMaxConnections)) == -1)	// listen
 	{
 		perror("listen");
 		exit(3);
 	}
 	
-	// add the listener to the master set
-	FD_SET(listener, &master);
+	FD_SET(listener, &master);	// add the listener to the master set
 	
-	// keep track of the biggest file descriptor
-	fdmax = listener; // so far, it's this one
+	fdmax = listener; 		// keep track of the biggest file descriptor - so far, it's this one
 	
-	// main loop
-	for(;;)
+	for(;;)				// main loop
 	{
 		read_fds = master; // copy it
 		
@@ -442,7 +433,7 @@ void handleIncomingData(int paramSocketFd)
 			sendCommand(paramSocketFd, sendBuffer, sendString.length());
 			
 			// Protocol Send-Syntax: 
-			//	11:{s,f}FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow{t,f}
+			//	11:{'s','f'}FirstName'\0'SecondName'\0'ThirdName'\0'{'t','f'}NrOfDescriptionCommandsThatWillFollow
 			
 			sendString = "";
 			
@@ -514,7 +505,7 @@ void handleIncomingData(int paramSocketFd)
 			sendBuffer[3] = '1';
 			sendCommand(paramSocketFd, sendBuffer, sendString.length());
 			
-			// Protocol Send-Syntax:	16:{s,f}NrOfAccountsInListThatWillFollow
+			// Protocol Send-Syntax:	16:{'s','f'}NrOfAccountsInListThatWillFollow
 			
 			element = ratingListStart->nextElement;
 			
@@ -600,7 +591,7 @@ void handleIncomingData(int paramSocketFd)
 				sendCommand(paramSocketFd, sendBuffer, 6);
 			}
 			
-			// Protocol Send-Syntax:	21:{s,f}ErrorMessage
+			// Protocol Send-Syntax:	21:{'s','f'}ErrorMessage
 			
 			saveToFile(pathToFileToSaveTo);
 			
@@ -611,7 +602,7 @@ void handleIncomingData(int paramSocketFd)
 		case 22:	// Account Modification - Account Details Modification 1
 			
 			// Protocol Receive-Syntax:
-			//	22:OldNickname'\0'Password'\0'FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow
+			//	22:OldNickname'\0'Password'\0'FirstName'\0'SecondName'\0'ThirdName'\0'{'t','f'}NrOfDescriptionCommandsThatWillFollow
 			
 			nickname = "";
 			
@@ -644,7 +635,7 @@ void handleIncomingData(int paramSocketFd)
 					strcpy(sendBuffer, sendString.c_str());
 					sendCommand(paramSocketFd, sendBuffer, 36);
 					
-					// Protocol Send-Syntax:	24:{s,f}ErrorMessage
+					// Protocol Send-Syntax:	24:{'s','f'}ErrorMessage
 					
 					break;
 				}
@@ -779,7 +770,7 @@ void handleIncomingData(int paramSocketFd)
 					strcpy(sendBuffer, sendString.c_str());
 					sendCommand(paramSocketFd, sendBuffer, 36);
 					
-					// Protocol Send-Syntax:	29:{s,f}ErrorMessage
+					// Protocol Send-Syntax:	29:{'s','f'}ErrorMessage
 					
 					break;
 				}
@@ -855,7 +846,7 @@ void handleIncomingData(int paramSocketFd)
 					strcpy(sendBuffer, sendString.c_str());
 					sendCommand(paramSocketFd, sendBuffer, 36);
 					
-					// Protocol Send-Syntax:	31:{s,f}ErrorMessage
+					// Protocol Send-Syntax:	31:{'s','f'}ErrorMessage
 					
 					break;
 				}
@@ -887,8 +878,6 @@ void handleIncomingData(int paramSocketFd)
 			break;
 			
 /*		case 50:
-			break;
-		case 52:
 			break;
 		case 54:
 			break;

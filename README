@@ -20,9 +20,13 @@ Just use g++ or another c++ compiler and compile the source code accordingly:
 
 g++ -std=c++11 RatingServer.cpp Network.cpp Games.cpp Schedule.cpp -o RatingServer
 
-To compile the simple example client change to the ExampleClient subfolder and run accordingly:
+To compile the simple example game client change to the ExampleGameClient subfolder and run accordingly:
 
-g++ ExampleClient.cpp -o ExampleClient
+g++ ExampleGameClient.cpp -o ExampleGameClient
+
+To compile the simple example game server change to the ExampleGameServer subfolder and run accordingly:
+
+g++ ExampleGameServer.cpp -o ExampleGameServer
 
 
 
@@ -32,9 +36,13 @@ Just run the resulting binary file like this:
 
 ./RatingServer FileToLoadFrom FileToSaveTo ListeningPortNr MaxConnections
 
-Run the example client binary file like this (if you built it as well and want to test some commands):
+Run the example game client binary file like this (if you built it as well and want to test some commands):
 
-./ExampleClient/ExampleClient Hostname PortNr
+./ExampleGameClient/ExampleGameClient GameServerHostname GameServerPortNr RatingServerHostname RatingServerPortNr GameClientRoleNr
+
+Run the example game server binary file like this (if you built it as well and want to test some commands):
+
+./ExampleGameServer/ExampleGameServer ListeningPortNr MaxConnections RatingServerHostname RatingServerPortNr
 
 
 
@@ -80,7 +88,7 @@ The following communication PROTOCOL is used:
 	
 	ALL COMMANDS:
 	
-	{s,f} means, that this char will be 's' for success or 'f' for failure.
+	{'s','f'} means, that this char will be 's' for success or 'f' for failure.
 	"The sequence-length of the rest of the sequence being sent" must always precede command-id:data-subsequence.
 	
 		command-id:data-subsequence		sending-direction	description
@@ -90,91 +98,91 @@ The following communication PROTOCOL is used:
 		Ping
 		
 		00					CL v GS --> RS		Ping
-		01					RS --> (back)		Pong
+		01					CL v GS <-- RS		Pong
 		
 		
 		Info Requesting		- Player Info
 		
 		10:Nickname				CL --> RS		Request player info (Nickname is any of the 3)
-		11:{s,f}FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow{t,f}
-		|					RS --> CL		Player info answer [1]
-		|								{t,f} denotes the boolean privateNrOfEvaluatedGames
+		11:{'s','f'}FirstName'\0'SecondName'\0'ThirdName'\0'{'t','f'}NrOfDescriptionCommandsThatWillFollow
+		|					CL <-- RS		Player info answer [1]
+		|								{'t','f'} denotes the boolean privateNrOfEvaluatedGames
 		|								(NrOfDescriptionCommandsThatWillFollow must be
 		|								less or equal 5)
-		12:DescriptionLine_i			RS --> CL		Player info answer [2 to (n+1)]
+		12:DescriptionLine_i			CL <-- RS		Player info answer [2 to (n+1)]
 		13:RatingValue1'\0'RatingValue2'\0'...RatingValue_m'\0'
-		|					RS --> CL		Player info answer [(n+2)]
+		|					CL <-- RS		Player info answer [(n+2)]
 		14:PlayedGames1'\0'PlayedGames2'\0'...PlayedGames_m'\0'
-		|					RS --> CL		Player info answer [(n+3)]
+		|					CL <-- RS		Player info answer [(n+3)]
 		
 		Info Requesting 	- Rating List
 		
 		15:RatingValueNr			CL --> RS		Request rating-list sorted by rating value nr
-		16:{s,f}NrOfAccountsInListThatWillFollow
-		|					RS --> CL		Rating-list answer [1]
+		16:{'s','f'}NrOfAccountsInListThatWillFollow
+		|					CL <-- RS		Rating-list answer [1]
 		|								k := NrOfAccountsInListThatWillFollow
 		17:FirstName'\0'SecondName'\0'ThirdName'\0'
-		|					RS --> CL		Rating-list answer [2+3*i]
+		|					CL <-- RS		Rating-list answer [2+3*i]
 		|								k commands of each this type and the next two types will
 		|								be sent in an alternating order,
 		|								so i goes from 0 to (k-1)
 		|								The first account info that is sent is of
 		|								that account with the highest rating value
 		18:RatingValue1'\0'RatingValue2'\0'...RatingValue_m'\0'
-		|					RS --> CL		Rating-list answer [3+3*i]
+		|					CL <-- RS		Rating-list answer [3+3*i]
 		19:PlayedGames1'\0'PlayedGames2'\0'...PlayedGames_m'\0'
-		|					RS --> CL		Player info answer [4+3*i]
+		|					CL <-- RS		Player info answer [4+3*i]
 		
 		
 		Account Modification 	- Registration
 		
 		20:Nickname'\0'Password'\0'		CL --> RS		Register new (basic) account
-		21:{s,f}ErrorMessage			RS --> CL		Result
+		21:{'s','f'}ErrorMessage		CL <-- RS		Result
 		
 		Account Modification	- Account Details Modification
 		
-		22:OldNickname'\0'Password'\0'FirstName'\0'SecondName'\0'ThirdName'\0'{t,f}NrOfDescriptionCommandsThatWillFollow
+		22:OldNickname'\0'Password'\0'FirstName'\0'SecondName'\0'ThirdName'\0'{'t','f'}NrOfDescriptionCommandsThatWillFollow
 		|					CL --> RS		Account modification [1]
-		|								{t,f} denotes the boolean privateNrOfEvaluatedGames
+		|								{'t','f'} denotes the boolean privateNrOfEvaluatedGames
 		|								(NrOfDescriptionCommandsThatWillFollow must be
 		|								less or equal 5)
 		23:DescriptionLine_n			CL --> RS		Account modification [2 to (n+1)]
-		24:{s,f}ErrorMessage			RS --> CL		Account modification answer [1]
+		24:{'s','f'}ErrorMessage		CL <-- RS		Account modification answer [1]
 		
 		Account Modification	- Password Modification
 		
 		28:Nickname'\0'OldPassword'\0'NewPassword'0'
 		|					CL --> RS		Change password
-		29:{s,f}ErrorMessage			RS --> CL		Result (Is always being send after at least
+		29:{'s','f'}ErrorMessage		CL <-- RS		Result (Is always being send after at least
 		|								5 seconds delay - even at success!)
 		
 		Account Modification 	- Deletion
 		
 		30:Nickname'\0'Password'\0'		CL --> RS		Delete account (Nickname is any of the 3)
-		31:{s,f}ErrorMessage			RS --> CL		Result (Is always being send after at least
+		31:{'s','f'}ErrorMessage		CL <-- RS		Result (Is always being send after at least
 		|								5 seconds delay - even at success!)
 		
 		
 		Game Execution		- Game Creation
 		
 		50					GS --> RS		Game creation
-		51:GameKey'\0'				RS --> GS		Game creation answer
+		51:GameKey'\0'				GS <-- RS		Game creation answer
 		
 		Game Execution		- Game Server To Client Welcome
 		
-		52:GameKey'\0'				GS --> CL		Game server to client welcome command
-		53:'s'					CL --> GS		Confirmation
+		52:					CL --> GS		Game participation
+		53:GameKey'\0'				CL <-- GS		Game server to client welcome command
 		
 		Game Execution		- Player Sign Up
 		
 		54:GameKey'\0'Nickname'\0'Password'\0'	CL --> RS		Player sign up for a game
-		55:{s,f}ErrorMessage			RS --> CL		Player sign up answer [1]
-		56:PlayerKey'\0'			RS --> CL		Player sign up answer [2]
+		55:{'s','f'}{ErrorMessage,PlayerKey'\0'}
+		|					CL <-- RS		Player sign up answer
 		
 		Game Execution		- Player Key Transmission
 		
-		57:PlayerKey'\0'			CL --> GS		PlayerKey transmission
-		58:'s'					GS --> CL		Confirmation
+		56:PlayerKey'\0'			CL --> GS		PlayerKey transmission
+		57:'s'					CL <-- GS		Confirmation
 		
 		Game Execution		- Game Start
 		
@@ -188,12 +196,12 @@ The following communication PROTOCOL is used:
 		|					GS --> RS		Keys of players in first team
 		64:Team2PlayerKey1'\0'Team2PlayerKey2'\0'...Team2PlayerKey_m'\0'
 		|					GS --> RS		Keys of players in second team
-		65:{s,f}ErrorMessage			RS --> GS		Game start information answer
+		65:{'s','f'}ErrorMessage		GS <-- RS		Game start information answer
 		
 		Game Execution		- Feedback
 		
 		66:GameKey'\0'				GS --> RS		Feedback signal
-		67:{s,f}ErrorMessage			RS --> GS		Confirmation
+		67:{'s','f'}ErrorMessage		GS <-- RS		Confirmation
 		
 		Game Execution		- Game Result Transmission From Game Server To Rating Server
 		
@@ -206,7 +214,7 @@ The following communication PROTOCOL is used:
 		|					GS --> RS		Efficiency of players in first team
 		72:Team2PlayerEfficiency_1'\0'Team2PlayerEfficiency_2'\0'...Team2PlayerEfficiency_m'\0'
 		|					GS --> RS		Efficiency of players in second team
-		73:{s,f}ErrorMessage			RS --> GS		Confirmation
+		73:{'s','f'}ErrorMessage		GS <-- RS		Confirmation
 		
 		Game Execution		- Game Result Transmission From Game Client To Rating Server
 		
@@ -215,22 +223,127 @@ The following communication PROTOCOL is used:
 		|								'0' if the game ended in a draw
 		|								'1' if the first team won
 		|								'2' if the second team won
-		75:{s,f}ErrorMessage			RS --> CL		Confirmation
+		75:{'s','f'}ErrorMessage		CL <-- RS		Confirmation
 		
 		Game Execution		- Rating Value Update Information
 		
 		80:NrOfPlayersInTeam1'\0'NrOfPlayersInTeam2'\0'
-							RS --> CL		Rating value update information
+							CL <-- RS		Rating value update information
 		81:Team1Nickname1'\0'Team1Nickname2'\0'...Team1Nickname_n'\0'
-		|					RS --> CL		Nicknames of players in first team
+		|					CL <-- RS		Nicknames of players in first team
 		82:Team2Nickname1'\0'Team2Nickname2'\0'...Team2Nickname_m'\0'
-		|					RS --> CL		Nicknames of players in second team
+		|					CL <-- RS		Nicknames of players in second team
 		83:Team1OldValue1'\0'Team1OldValue2'\0'...Team1OldValue_n'\0'
-		|					RS --> CL		Old rating values of players in first team
+		|					CL <-- RS		Old rating values of players in first team
 		84:Team2OldValue1'\0'Team2OldValue2'\0'...Team2OldValue_m'\0'
-		|					RS --> CL		Old rating values of players in second team
+		|					CL <-- RS		Old rating values of players in second team
 		83:Team1NewValue1'\0'Team1NewValue2'\0'...Team1NewValue_n'\0'
-		|					RS --> CL		New rating values of players in first team
+		|					CL <-- RS		New rating values of players in first team
 		84:Team2NewValue1'\0'Team2NewValue2'\0'...Team2NewValue_m'\0'
-		|					RS --> CL		New rating values of players in second team
+		|					CL <-- RS		New rating values of players in second team
+		85					CL --> RS		Confirmation
+	
+	
+	EXAMPLES:
+	
+	
+	1)	The simple ExampleGameClient introduces an example of the communication for ping, info requesting and account modification.
+		To execute it, run the programs in parallel starting in the following order (assuming . is the root directory of the rating server):
+		
+		1.)	./RatingServer FileToLoadFrom FileToSaveTo ListeningPortNr MaxConnections
+		2.)	./ExampleGameClient/ExampleGameClient 0 0 RatingServerHostname RatingServerPortNr 0
+	
+	
+	2)	The simple ExampleGameServer and the simple ExampleGameClient introduce an example of the communication to handle the
+		evaluation of a game with 2 teams of 3 players each.
+		To execute it, run the programs in parallel starting in the following order (assuming . is the root directory of the rating server):
+		
+		1.)	./RatingServer FileToLoadFrom FileToSaveTo ListeningPortNr MaxConnections
+		2.)	./ExampleGameServer/ExampleGameServer ListeningPortNr MaxConnections RatingServerHostname RatingServerPortNr
+		3.)	./ExampleGameClient/ExampleGameClient GameServerHostname GameServerPortNr RatingServerHostname RatingServerPortNr 1
+		4.)	./ExampleGameClient/ExampleGameClient GameServerHostname GameServerPortNr RatingServerHostname RatingServerPortNr 2
+		5.)	./ExampleGameClient/ExampleGameClient GameServerHostname GameServerPortNr RatingServerHostname RatingServerPortNr 3
+		6.)	./ExampleGameClient/ExampleGameClient GameServerHostname GameServerPortNr RatingServerHostname RatingServerPortNr 4
+		7.)	./ExampleGameClient/ExampleGameClient GameServerHostname GameServerPortNr RatingServerHostname RatingServerPortNr 5
+		8.)	./ExampleGameClient/ExampleGameClient GameServerHostname GameServerPortNr RatingServerHostname RatingServerPortNr 6
+		
+		
+		Game Execution		- Game Creation
+		
+		50					GS --> RS		Game creation
+		51:GameKey'\0'				GS <-- RS		Game creation answer
+		
+		Game Execution		- Game Server To Client Welcome
+		
+		52:					CL --> GS		Game participation
+		53:GameKey'\0'				CL <-- GS		Game server to client welcome command
+		
+		Game Execution		- Player Sign Up
+		
+		54:GameKey'\0'Nickname'\0'Password'\0'	CL --> RS		Player sign up for a game
+		55:{'s','f'}{ErrorMessage,PlayerKey'\0'}
+		|					CL <-- RS		Player sign up answer
+		
+		Game Execution		- Player Key Transmission
+		
+		56:PlayerKey'\0'			CL --> GS		PlayerKey transmission
+		57:'s'					CL <-- GS		Confirmation
+		
+		Game Execution		- Game Start
+		
+		60:RatingSystemNr'\0'GameKey'\0'NrOfPlayersInTeam1'\0'NrOfPlayersInTeam2'\0'
+		|					GS --> RS		Game start information
+		61:Team1Nickname1'\0'Team1Nickname2'\0'...Team1Nickname_n'\0'
+		|					GS --> RS		Nicknames of players in first team
+		62:Team2Nickname1'\0'Team2Nickname2'\0'...Team2Nickname_m'\0'
+		|					GS --> RS		Nicknames of players in second team
+		63:Team1PlayerKey1'\0'Team1PlayerKey2'\0'...Team1PlayerKey_n'\0'
+		|					GS --> RS		Keys of players in first team
+		64:Team2PlayerKey1'\0'Team2PlayerKey2'\0'...Team2PlayerKey_m'\0'
+		|					GS --> RS		Keys of players in second team
+		65:{'s','f'}ErrorMessage		GS <-- RS		Game start information answer
+		
+		Game Execution		- Feedback
+		
+		66:GameKey'\0'				GS --> RS		Feedback signal
+		67:{'s','f'}ErrorMessage		GS <-- RS		Confirmation
+		
+		Game Execution		- Game Result Transmission From Game Server To Rating Server
+		
+		70:GameKey'\0'{0,1,2}			GS --> RS		Result transmission
+		|								{0,1,2} is
+		|								'0' if the game ended in a draw
+		|								'1' if the first team won
+		|								'2' if the second team won
+		71:Team1PlayerEfficiency_1'\0'Team1PlayerEfficiency_2'\0'...Team1PlayerEfficiency_n'\0'
+		|					GS --> RS		Efficiency of players in first team
+		72:Team2PlayerEfficiency_1'\0'Team2PlayerEfficiency_2'\0'...Team2PlayerEfficiency_m'\0'
+		|					GS --> RS		Efficiency of players in second team
+		73:{'s','f'}ErrorMessage		GS <-- RS		Confirmation
+		
+		Game Execution		- Game Result Transmission From Game Client To Rating Server
+		
+		74:{0,1,2}				CL --> RS		Result transmission
+		|								{0,1,2} is
+		|								'0' if the game ended in a draw
+		|								'1' if the first team won
+		|								'2' if the second team won
+		75:{'s','f'}ErrorMessage		CL <-- RS		Confirmation
+		
+		Game Execution		- Rating Value Update Information
+		
+		80:NrOfPlayersInTeam1'\0'NrOfPlayersInTeam2'\0'
+							CL <-- RS		Rating value update information
+		81:Team1Nickname1'\0'Team1Nickname2'\0'...Team1Nickname_n'\0'
+		|					CL <-- RS		Nicknames of players in first team
+		82:Team2Nickname1'\0'Team2Nickname2'\0'...Team2Nickname_m'\0'
+		|					CL <-- RS		Nicknames of players in second team
+		83:Team1OldValue1'\0'Team1OldValue2'\0'...Team1OldValue_n'\0'
+		|					CL <-- RS		Old rating values of players in first team
+		84:Team2OldValue1'\0'Team2OldValue2'\0'...Team2OldValue_m'\0'
+		|					CL <-- RS		Old rating values of players in second team
+		83:Team1NewValue1'\0'Team1NewValue2'\0'...Team1NewValue_n'\0'
+		|					CL <-- RS		New rating values of players in first team
+		84:Team2NewValue1'\0'Team2NewValue2'\0'...Team2NewValue_m'\0'
+		|					CL <-- RS		New rating values of players in second team
 		85					CL --> RS		Confirmation
